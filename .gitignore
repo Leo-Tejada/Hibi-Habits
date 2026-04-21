@@ -1,0 +1,22 @@
+# Ignorar carpetas de caché de Python
+__pycache__/
+*.py[cod]
+
+# Ignorar entornos virtuales (si usas uno)
+venv/
+env/
+
+# Ignorar archivos de configuración del sistema
+.DS_Store
+Thumbs.db
+
+# Tu archivo JSON
+*.json
+
+# O archivos personales que mencionaste antes por si acaso
+*.pdf
+*.p12
+
+# Otros
+Docs/
+test.py
