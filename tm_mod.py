@@ -1,6 +1,7 @@
 import os
 import json
 import smtplib
+import personal_data as my
 from time import sleep
 from email.message import EmailMessage
 
@@ -84,23 +85,23 @@ def check(data: str, domain: tuple = (0, 5)) -> tuple[bool, int | str]:
         return (False, f'"{data}" cannot be converted to an integer.')
 
 
-def send_email(data: str, quant: int) -> None:
+def send_email(body: str, quant: int) -> None:
     """Sends the data to my mail."""
     
-    my_email: str     = 'leotejadasaito@gmail.com'
-    app_password: str = 'micj cwgj clxo vnjh'
+    MY_EMAIL:     str = my.EMAIL
+    APP_PASSWORD: str = my.PASSWORD
     
     msg = EmailMessage()
     msg['Subject'] = f'Tasks: You have {quant} remaining.'
-    msg['From']    = my_email
-    msg['To']      = my_email
-    msg.set_content(data) #The actual body of the email (AI shit)
+    msg['From']    = MY_EMAIL
+    msg['To']      = MY_EMAIL
+    msg.set_content(body) #The actual body of the email
 
     print('Sending email...')
     
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(my_email, app_password)
+            server.login(MY_EMAIL, APP_PASSWORD)
             server.send_message(msg)
         print('Email sent successfully!')
         sleep(1)
