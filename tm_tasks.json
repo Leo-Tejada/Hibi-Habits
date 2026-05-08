@@ -1,0 +1,42 @@
+{
+    "Sketch PCM functioning": [
+        1,
+        90
+    ],
+    "Patch: Add a way to highlight your tasks (using indexes instead of tweaking actual data)": [
+        1,
+        90
+    ],
+    "Take pictures for Wallapop": [
+        1,
+        120
+    ],
+    "Do 3 DELEC exercises": [
+        1,
+        120
+    ],
+    "lil Patch: Make that it displays the tasks when quitting": [
+        0,
+        30
+    ],
+    "Lil Patch: Make a completed tasks counter": [
+        0,
+        30
+    ],
+    "Patch: Make that you input b to go back in r and i": [
+        0,
+        30
+    ],
+    "Lil Patch: Add a are you sure menu before deleting": [
+        0,
+        30
+    ],
+    "Patch: Add a function to move tasks from one pri to another": [
+        0,
+        45
+    ],
+    "Patch 1.4.0: Add the d menu to i": [
+        0,
+        60
+    ]
+}
