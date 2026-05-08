@@ -6,6 +6,7 @@ from time import sleep
 from email.message import EmailMessage
 
 VERSION: str = '1.0'
+WORDS: list[str] = ['Low', 'Mid', 'High']
 
 
 def clear(v: str = VERSION) -> None:
@@ -19,10 +20,14 @@ def printb(message: str) -> None:
     print('\033[1m' + message + '\033[0m')
 
 
-def save(data: dict[str, tuple[int, int]]) -> None:
-    """Saves the given data in the JSON file, currently, the only one."""
-    with open('tm_tasks.json', 'w') as file:
-        json.dump(data, file, indent=4)
+def save(data: str | dict[str, tuple[int, int]], file_name: str, ext: str) -> None:
+    """Saves the given data in the file w/ the corresponding name and extension"""
+    with open(file_name, 'w') as file:
+        if ext.lower() == 'txt':
+            file.write(data)
+
+        elif ext.lower() == 'json':
+            json.dump(data, file, indent=4)
 
 
 def print_list(data: list) -> None:
@@ -32,6 +37,24 @@ def print_list(data: list) -> None:
         if index < 10: print(' ', end='') #Aligning indexes
         print(f'{index}. {item.title()}')
     print() #Empty line
+
+
+def display(tasks: dict[str, tuple[int, int]], domain: tuple[int]=(0, 2)) -> None:
+    """Arranges the tasks in the given domain and prints them."""
+    for pri in range(domain[1], domain[0]-1, -1):
+        printb(f'{WORDS[pri]} priority tasks.')
+
+        pri_tasks = {}
+        for key in tasks.keys():
+            if tasks[key][0] == pri:
+                pri_tasks[key] = tasks[key]
+
+        if not pri_tasks:
+            print(f'You have none left!'+'\n')
+            continue
+
+        print(f'Expected duration: {total_time(value[1] for value in pri_tasks.values())}')
+        print_list(pri_tasks.keys())
 
 
 def total_time(data: list[int]) -> str:

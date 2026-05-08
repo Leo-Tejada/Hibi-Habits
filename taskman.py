@@ -2,25 +2,39 @@ from tm_mod import *
 from time import sleep
 import json
 
+SAVED_TASKS:         str = 'tm_tasks.json'
+SAVED_METADATA:      str = 'metadata.txt'
+PRI_DOM: tuple[int, int] = (0,   2)  #Priority domain
+DUR_DOM: tuple[int, int] = (0, 300)  #Duration domain
+WORDS:         list[str] = ['Low', 'Mid', 'High'] #!!! Maybe should be deleted in the future. To use it only in the module.
+
 
 tasks:     dict[str, tuple[int, int]] = {}
 pri_tasks: dict[str, tuple[int, int]] = {}
 tasks_names:                list[str] = []
 
-PRI_DOM: tuple[int, int] = (0,   2)       #Priority domain
-DUR_DOM: tuple[int, int] = (0, 300)       #Duration domain
-WORDS: list[str] = ['Low', 'Mid', 'High'] #Constant for d and s
+tasks_metadata:  str = ''
+completed_tasks: int = 0
 
+#!!! Make them functions in the future
 try:
-    with open('tm_tasks.json', 'r') as file:
+    with open(SAVED_TASKS, 'r') as file:
         tm_tasks: dict[str, list[int, int]] = json.load(file)
 
         for index, value in tm_tasks.items():
             tasks[index] = tuple(value)
 
 except (FileNotFoundError, json.JSONDecodeError):
-    with open('tm_tasks.json', 'w') as file:
+    with open(SAVED_TASKS, 'w') as file:
         json.dump({}, file)
+
+try:
+    with open(SAVED_METADATA, 'r') as file:
+        tasks_metadata = file.read().strip()
+
+except (FileNotFoundError):
+    with open(SAVED_METADATA, 'w') as file:
+        file.write('Completed Tasks - 0 - Highlighted Tasks - 0')
 
 
 #------------------------------------------------------------#
@@ -96,7 +110,7 @@ while True:
                 sleep(2)
 
         tasks = order(tasks)
-        save(tasks)
+        save(tasks, SAVED_TASKS, 'json')
 
 
     #------------------------------------------------------------#
@@ -139,7 +153,7 @@ while True:
                 #--=   Updating the tasks since indices were valid   =--#
                 if not editing:
                     tasks = idx_delete(tasks, indices=d_indices)
-                    save(tasks)
+                    save(tasks, SAVED_TASKS, 'json')
                     sleep(1) #So the user can see idx_delete's printed lines
             
             elif INP == 'b':
@@ -158,22 +172,7 @@ while True:
 
     elif GINP == 'd':
         clear()
-
-        for pri in range(2, -1, -1): #Priority's domain
-            printb(f'{WORDS[pri]} priority tasks.')
-
-            pri_tasks = {}
-            for key in tasks.keys():
-                if tasks[key][0] == pri:
-                    pri_tasks[key] = tasks[key]
-
-            if not pri_tasks:
-                print(f'You have none left!'+'\n')
-                continue
-
-            print(f'Expected duration: {total_time(value[1] for value in pri_tasks.values())}')
-            print_list(pri_tasks.keys())
-
+        display(tasks)
         input('Press enter to continue.')
 
 
@@ -212,4 +211,5 @@ while True:
         sleep(1)
 
 clear()
+display(tasks)
 print('See you soon!')
