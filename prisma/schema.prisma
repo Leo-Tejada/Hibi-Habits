@@ -1,7 +1,12 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// Hibi Habits — data model.
+//
+// The pyramid, top to bottom:
+//   Category > Subcategory > Quest > Habit > Task
+//
+// Category and Subcategory are the philosophy of the app and are never
+// editable, so they are not tables. Only `subcategory` is ever stored;
+// the category it belongs to is derived from it in `src/lib/taxonomy.ts`.
+// Storing both would let them drift apart, and they can't.
 
 generator client {
   provider = "prisma-client"
@@ -10,4 +15,247 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+/// The nine areas of life. Fixed forever — see the note above.
+enum Subcategory {
+  MIND
+  BODY
+  SPIRIT
+  LOVE
+  FAMILY
+  FRIENDS
+  WORK
+  GROWTH
+  MONEY
+}
+
+/// Main quests are the three anchors of a season, one per category.
+/// Side quests are optional and unlimited.
+enum QuestKind {
+  MAIN
+  SIDE
+}
+
+enum QuestStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+/// How a habit decides which days it wants a task on.
+enum ScheduleKind {
+  /// Fixed weekdays, e.g. every Monday and Thursday.
+  WEEKLY_DAYS
+  /// A fixed cadence counted from the habit's anchor date, e.g. every 3 days.
+  EVERY_N_DAYS
+}
+
+enum TaskStatus {
+  PENDING
+  /// Deliberately stood down. Never counts as a miss.
+  SKIPPED
+  DONE
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  /// IANA zone. Decides when "today" rolls over for this user.
+  timeZone  String   @default("UTC")
+  createdAt DateTime @default(now())
+
+  seasons  Season[]
+  quests   Quest[]
+  habits   Habit[]
+  tasks    Task[]
+  journal  JournalEntry[]
+
+  @@map("users")
+}
+
+/// One calendar quarter of living. A season always begins on the 1st of
+/// January, April, July or October, so which season a day belongs to is
+/// arithmetic rather than a lookup — see `src/lib/seasons/quarter.ts`.
+///
+/// Everything a season owns dies with it except habits, which are meant
+/// to outlive the quest that started them.
+model Season {
+  id       String   @id @default(cuid())
+  userId   String
+  /// Human-facing name, e.g. "Autumn 2026". The quarter label is derived.
+  name     String
+  /// Must be a quarter boundary. Identifies the season on its own.
+  startsOn DateTime @db.Date
+  /// Inclusive last day. Derived on write so date queries stay simple.
+  endsOn   DateTime @db.Date
+
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quests     Quest[]
+  reflection SeasonReflection?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, startsOn])
+  @@map("seasons")
+}
+
+/// What the season is for. Progress is self-rated: the user sets it,
+/// nothing derives it.
+model Quest {
+  id          String      @id @default(cuid())
+  userId      String
+  seasonId    String
+  kind        QuestKind
+  subcategory Subcategory
+  title       String
+  intent      String?
+  /// 0–100, set by hand. See `src/lib/quests/rules.ts`.
+  progress    Int         @default(0)
+  status      QuestStatus @default(ACTIVE)
+  sortOrder   Int         @default(0)
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  season Season  @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  habits Habit[]
+  tasks  Task[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([seasonId, kind])
+  @@index([userId, status])
+  @@map("quests")
+}
+
+/// A repeating practice. Owns a schedule, which is what makes a missed
+/// task detectable: without an expected day, nothing can be late.
+model Habit {
+  id          String      @id @default(cuid())
+  userId      String
+  /// Optional: a habit can outlive its quest, or never have had one.
+  questId     String?
+  subcategory Subcategory
+  title       String
+
+  scheduleKind ScheduleKind
+  /// WEEKLY_DAYS only. 0 = Sunday through 6 = Saturday.
+  weekdays     Int[]        @default([])
+  /// EVERY_N_DAYS only. Counted from `anchorOn`.
+  intervalDays Int?
+  /// Day the cadence starts counting from.
+  anchorOn     DateTime     @db.Date
+
+  /// Optional measurement, e.g. "reps" with a target of 30.
+  unit   String?
+  target Float?
+
+  archivedAt DateTime?
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quest Quest? @relation(fields: [questId], references: [id], onDelete: SetNull)
+  tasks Task[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, archivedAt])
+  @@index([questId])
+  @@map("habits")
+}
+
+/// One thing to do on one day. The only level the user touches daily.
+///
+/// A task can hang off a habit, straight off a quest, or off nothing at
+/// all — a stray errand that counts toward no statistic.
+model Task {
+  id      String     @id @default(cuid())
+  userId  String
+  habitId String?
+  questId String?
+  title   String
+  dueOn   DateTime   @db.Date
+  status  TaskStatus @default(PENDING)
+
+  completedAt DateTime?
+  /// Snapshots of the habit's measurement at the time the task was made,
+  /// so re-tuning a habit never rewrites history.
+  value       Float?
+  unit        String?
+  target      Float?
+  note        String?
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habit Habit? @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  quest Quest? @relation(fields: [questId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Makes materialising a habit's tasks idempotent. Postgres does not
+  /// collide NULLs, so free-floating tasks are unaffected by this.
+  @@unique([habitId, dueOn])
+  @@index([userId, dueOn])
+  @@index([questId])
+  @@map("tasks")
+}
+
+/// One page per day: the writing and the mood live together because
+/// they are written together.
+model JournalEntry {
+  id      String   @id @default(cuid())
+  userId  String
+  entryOn DateTime @db.Date
+
+  /// 1–5, low to high.
+  mood      Int?
+  energy    Int?
+  body      String?
+  gratitude String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, entryOn])
+  @@index([userId, entryOn])
+  @@map("journal_entries")
+}
+
+/// The closing ceremony of a season.
+model SeasonReflection {
+  id       String @id @default(cuid())
+  seasonId String @unique
+
+  wentWell     String?
+  wentBadly    String?
+  learned      String?
+  carryForward String?
+  /// Set when the user finishes the form. Null means started, not done.
+  completedAt  DateTime?
+
+  season  Season         @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  ratings SeasonRating[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("season_reflections")
+}
+
+/// How the season went in one area of life, scored by hand at the end.
+model SeasonRating {
+  id           String      @id @default(cuid())
+  reflectionId String
+  subcategory  Subcategory
+  /// 1–5.
+  score        Int
+  note         String?
+
+  reflection SeasonReflection @relation(fields: [reflectionId], references: [id], onDelete: Cascade)
+
+  @@unique([reflectionId, subcategory])
+  @@map("season_ratings")
 }
