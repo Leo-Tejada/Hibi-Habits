@@ -26,14 +26,14 @@ export function GradientBackground() {
         <ShaderGradient
           animate={still ? 'off' : 'on'}
           axesHelper="off"
-          brightness={3}
-          cAzimuthAngle={270}
-          cDistance={0.51}
-          cPolarAngle={180}
-          cameraZoom={9.1}
-          color1="#73bfc4"
-          color2="#ff810a"
-          color3="#8da0ce"
+          brightness={1.2}
+          cAzimuthAngle={180}
+          cDistance={38}
+          cPolarAngle={90}
+          cameraZoom={1}
+          color1="#ff5005"
+          color2="#dbba95"
+          color3="#8a0000"
           destination="onCanvas"
           embedMode="off"
           envPreset="city"
@@ -42,27 +42,28 @@ export function GradientBackground() {
           frameRate={10}
           gizmoHelper="hide"
           grain="on"
-          lightType="env"
-          pixelDensity={0.5}
-          positionX={-0.1}
+          lightType="3d"
+          pixelDensity={1}
+          positionX={-1.4}
           positionY={0}
           positionZ={0}
           range="disabled"
           rangeEnd={40}
           rangeStart={0}
-          reflection={0.3}
+          reflection={0.1}
           rotationX={0}
-          rotationY={130}
-          rotationZ={70}
+          rotationY={10}
+          rotationZ={50}
           shader="defaults"
           type="sphere"
-          uAmplitude={5.5}
-          uDensity={0.7}
+          uAmplitude={1}
+          uDensity={1.3}
           uFrequency={5.5}
-          uSpeed={0.2}
-          uStrength={1.3}
+          uSpeed={0.4}
+          uStrength={4}
           uTime={0}
           wireframe={false}
+          zoomOut={false}
         />
       </ShaderGradientCanvas>
     </div>
