@@ -38,15 +38,33 @@ export function TaskRow({
         line.happeningNow ? 'bg-well ring-1 ring-inset ring-line' : ''
       } ${locked ? 'opacity-45' : ''}`}
     >
-      <input
-        type="checkbox"
-        checked={line.done}
-        disabled={line.settled}
-        aria-label={line.raw}
+      {/*
+        The box is small because a large one would shout, but the target
+        is not: an invisible pad reaches well past it on every side, and
+        being inside the label means a click anywhere on it still ticks.
+      */}
+      <label
         onClick={(event) => event.stopPropagation()}
-        onChange={(event) => onToggle(event.target.checked)}
-        className="size-4 shrink-0 cursor-pointer appearance-none rounded border border-line-soft bg-ground checked:border-ink checked:bg-ink disabled:cursor-not-allowed"
-      />
+        className={`relative flex shrink-0 items-center ${
+          line.settled ? '' : 'cursor-pointer'
+        }`}
+      >
+        <input
+          type="checkbox"
+          checked={line.done}
+          disabled={line.settled}
+          aria-label={line.raw}
+          onChange={(event) => onToggle(event.target.checked)}
+          className="size-4 appearance-none rounded border border-line-soft bg-ground checked:border-ink checked:bg-ink disabled:cursor-not-allowed"
+        />
+        {/*
+          Ten, not twelve: rows sit 20px apart, so this covers the whole
+          gap and meets its neighbour exactly at the midpoint. Any more
+          and the pads would overlap, and a click between two rows would
+          tick whichever happened to be painted last.
+        */}
+        <span aria-hidden className="absolute -inset-2.5" />
+      </label>
 
       <TaskText
         raw={subjectOf(line.raw)}

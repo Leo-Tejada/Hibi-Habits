@@ -52,6 +52,7 @@ export function DailyCard({ view }: { view: DailyView }) {
   const [checks, setChecks] = useState<Record<string, boolean>>({})
   const [, startSaving] = useTransition()
   const listRef = useRef<HTMLUListElement>(null)
+  const headerRef = useRef<HTMLElement>(null)
 
   const editing = entries !== null
 
@@ -63,7 +64,12 @@ export function DailyCard({ view }: { view: DailyView }) {
   )
   const done = lines.filter((line) => line.done).length
 
-  useDayShortcuts(view, editing)
+  function startEditing(): void {
+    setEntries(toEntries(view.lines))
+  }
+
+  useDayShortcuts(view, editing, startEditing)
+  useDayWheel(headerRef, view, editing)
 
   function commit(next: EditorLine[]): void {
     setEntries(null)
@@ -94,9 +100,19 @@ export function DailyCard({ view }: { view: DailyView }) {
   return (
     <Card
       className="w-full max-w-2xl px-8 pt-7 pb-8"
-      onClick={() => (editing ? commit(entries) : setEntries(toEntries(view.lines)))}
+      onClick={() => (editing ? commit(entries) : startEditing())}
     >
-      <header className="flex items-baseline justify-between gap-4 pb-6">
+      {/*
+        A band of its own, so the day can own the scroll wheel without
+        fighting the list below it — and so a stray click up here does
+        nothing rather than dropping you into the editor.
+      */}
+      <header
+        ref={headerRef}
+        title="Scroll to change day"
+        onClick={(event) => event.stopPropagation()}
+        className="-mx-8 -mt-7 mb-6 flex items-baseline justify-between gap-4 rounded-t-xl border-b border-line bg-well px-8 py-5"
+      >
         <div className="flex items-baseline gap-4">
           <h1 className="text-[24px] font-bold leading-none tracking-[-0.02em]">
             {STANDING_LABEL[view.standing]}
@@ -133,7 +149,7 @@ export function DailyCard({ view }: { view: DailyView }) {
       )}
 
       <p className="pt-7 text-center text-[12px] text-ink-faint">
-        {editing ? 'Enter for a new line · Esc to finish' : 'Click the card to edit'}
+        {editing ? 'Enter for a new line · Esc to finish' : 'Click the card or press E to edit'}
       </p>
     </Card>
   )
@@ -175,21 +191,81 @@ function TaskList({
   )
 }
 
-/** Left and right move between yesterday, today and tomorrow. */
-function useDayShortcuts(view: DailyView, editing: boolean): void {
+/** Arrows move between days; E opens the editor. Only in view mode. */
+function useDayShortcuts(view: DailyView, editing: boolean, onEdit: () => void): void {
   const router = useRouter()
 
   useEffect(() => {
     if (editing) return
 
     function onKey(event: KeyboardEvent): void {
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+
       if (event.key === 'ArrowLeft' && view.previous) router.push(`/daily?day=${view.previous}`)
       if (event.key === 'ArrowRight' && view.next) router.push(`/daily?day=${view.next}`)
+      if (event.key === 'e' || event.key === 'E') {
+        event.preventDefault()
+        onEdit()
+      }
     }
 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [editing, router, view.previous, view.next])
+  }, [editing, router, onEdit, view.previous, view.next])
+}
+
+/** How much wheel travel counts as a deliberate flick. */
+const WHEEL_THRESHOLD = 50
+
+/** How long to ignore the wheel afterwards, so momentum cannot run away. */
+const WHEEL_COOLDOWN_MS = 400
+
+/**
+ * One flick of the wheel over the header moves one day — never three,
+ * however hard a trackpad throws it. Travel is accumulated to a threshold
+ * and then the wheel is ignored while the momentum dies down.
+ */
+function useDayWheel(
+  ref: React.RefObject<HTMLElement | null>,
+  view: DailyView,
+  editing: boolean
+): void {
+  const router = useRouter()
+
+  useEffect(() => {
+    const node = ref.current
+
+    if (!node || editing) return
+
+    let travelled = 0
+    let cooling = false
+
+    function settle(): void {
+      cooling = false
+      travelled = 0
+    }
+
+    function onWheel(event: WheelEvent): void {
+      event.preventDefault()
+      if (cooling) return
+
+      travelled += event.deltaY
+      if (Math.abs(travelled) < WHEEL_THRESHOLD) return
+
+      const target = travelled > 0 ? view.next : view.previous
+
+      travelled = 0
+      if (!target) return
+
+      cooling = true
+      window.setTimeout(settle, WHEEL_COOLDOWN_MS)
+      router.push(`/daily?day=${target}`)
+    }
+
+    // Not passive: the page must not scroll while the header is steering.
+    node.addEventListener('wheel', onWheel, { passive: false })
+    return () => node.removeEventListener('wheel', onWheel)
+  }, [ref, router, editing, view.next, view.previous])
 }
 
 /**
