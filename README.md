@@ -53,20 +53,27 @@ deployment environment. Prisma 7 needs a driver adapter, wired up in
 
 ### Connection pooling
 
-The database sits behind Supabase's pooler, and the ceiling is
-(app instances × pool size), not pool size alone. `src/server/db.ts` caps each
-pool at 3 — override with `DATABASE_POOL_MAX`. Running out surfaces as an
-`EMAXCONNS` error on an innocent-looking query, not as anything resembling a bug.
+**The deployed app must use port 6543.** Two ports serve the same database:
 
-Two ports are available on the same host:
+| Port | Mode        | Client slots        | Use for                              |
+| ---- | ----------- | ------------------- | ------------------------------------ |
+| 5432 | session     | 15 for the account  | local development, and migrations    |
+| 6543 | transaction | multiplexed         | anything serverless                  |
 
-| Port | Mode        | Use for                                              |
-| ---- | ----------- | ---------------------------------------------------- |
-| 5432 | session     | local development, and migrations                    |
-| 6543 | transaction | anything serverless, where instances come and go     |
+Session mode holds one real client slot per connection, and the account only
+gets 15 of them. Every serverless instance brings its own pool, so a handful of
+warm instances take the lot and everything after that dies with
+`EMAXCONNSESSION` — which surfaces as an ordinary-looking query failure, or as
+the whole screen refusing to load. Transaction mode multiplexes instead, so
+instances can come and go freely.
 
-Both are verified to work with Prisma 7 and `@prisma/adapter-pg`, interactive
-transactions included. Prefer 6543 for the deployed app.
+Both work with Prisma 7 and `@prisma/adapter-pg`, interactive transactions
+included. Migrations need session mode, which is why local development stays on
+5432.
+
+`src/server/db.ts` also caps each instance at a single connection — override
+with `DATABASE_POOL_MAX`. The ceiling is (instances × pool size), so on session
+mode this is the difference between five instances and fifteen.
 
 Other scripts: `npm run typecheck`, `npm run lint`, `npm run build`,
 `npm run db:studio`.
