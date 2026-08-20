@@ -43,7 +43,7 @@ function SideQuestRow({ quest }: { quest: QuestCard }) {
 export function SideQuests({ quests }: { quests: QuestCard[] }) {
   return (
     <section>
-      <SectionHead title="Side quests" note="Optional, and as many as the season can carry" />
+      <SectionHead title="Side quests"/>
       {quests.length === 0 ? (
         <p className="py-3 text-[12px] text-ink-faint">
           None this season. Side quests are the things worth doing that the main three do not cover.
