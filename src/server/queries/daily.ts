@@ -1,9 +1,11 @@
 import { connection } from 'next/server'
+import type { Subcategory } from '@/generated/prisma/enums'
 import { clampDay, shiftDays, toDateColumn, todayIn, type DayKey } from '@/lib/dates/day'
 import { MINUTES_IN_DAY, nowMinutesIn } from '@/lib/dates/time'
 import { endOfTask, orderForDay } from '@/lib/tasks/ordering'
 import { isSettled } from '@/lib/tasks/settling'
 import { formatLine, parseLine } from '@/lib/tasks/syntax'
+import { categoryOf, type Category } from '@/lib/taxonomy'
 import type { DailyLine, DailyView, DayStanding } from '@/types/daily'
 import { currentUser } from '../current-user'
 import { db } from '../db'
@@ -16,7 +18,7 @@ type TaskRow = {
   startMinute: number | null
   endMinute: number | null
   generated: boolean
-  habit: { title: string } | null
+  habit: { title: string; subcategory: Subcategory } | null
 }
 
 function standingOf(day: DayKey, today: DayKey): DayStanding {
@@ -54,6 +56,7 @@ function toLine(task: TaskRow, day: DayKey, today: DayKey): DailyLine {
     id: task.id,
     raw: rawOf(task),
     reference: task.habit?.title ?? embedded?.reference ?? null,
+    category: task.habit ? categoryOf(task.habit.subcategory) : null,
     unresolved,
     name: unresolved ? (embedded?.name ?? '') : task.title,
     start: task.startMinute,
@@ -80,21 +83,36 @@ function markCurrent(lines: DailyLine[], isToday: boolean, nowMinute: number): D
   })
 }
 
-/** `Habit.Task` strings the editor can complete, newest habits first. */
-async function suggestionsFor(userId: string): Promise<string[]> {
+type Vocabulary = { suggestions: string[]; references: Record<string, Category> }
+
+/**
+ * What the editor knows about your habits: the strings it can complete,
+ * and which part of life each one belongs to so a line can be coloured
+ * while it is still being typed.
+ */
+async function vocabularyFor(userId: string): Promise<Vocabulary> {
   const habits = await db.habit.findMany({
     where: { userId, archivedAt: null },
-    select: { title: true, rotation: true, tasks: { select: { title: true }, distinct: ['title'] } },
+    select: {
+      title: true,
+      subcategory: true,
+      rotation: true,
+      tasks: { select: { title: true }, distinct: ['title'] },
+    },
     orderBy: { createdAt: 'asc' },
   })
+  const references: Record<string, Category> = {}
+  const suggestions = habits.flatMap((habit) => {
+    references[habit.title.toLowerCase()] = categoryOf(habit.subcategory)
 
-  return habits.flatMap((habit) => {
     const names = new Set(
       [...habit.rotation, ...habit.tasks.map((task) => task.title)].filter(Boolean)
     )
 
     return [habit.title, ...[...names].map((name) => `${habit.title}.${name}`)]
   })
+
+  return { suggestions, references }
 }
 
 export async function dailyView(requested?: string): Promise<DailyView> {
@@ -110,7 +128,7 @@ export async function dailyView(requested?: string): Promise<DailyView> {
   // window runs one day ahead rather than stopping at today.
   await materializeTasks(user.id, first, last)
 
-  const [tasks, suggestions] = await Promise.all([
+  const [tasks, vocabulary] = await Promise.all([
     db.task.findMany({
       where: { userId: user.id, dueOn: toDateColumn(day) },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
@@ -121,10 +139,10 @@ export async function dailyView(requested?: string): Promise<DailyView> {
         startMinute: true,
         endMinute: true,
         generated: true,
-        habit: { select: { title: true } },
+        habit: { select: { title: true, subcategory: true } },
       },
     }),
-    suggestionsFor(user.id),
+    vocabularyFor(user.id),
   ])
 
   // Timed lines always read in clock order; untimed ones hold their slot.
@@ -141,7 +159,8 @@ export async function dailyView(requested?: string): Promise<DailyView> {
     previous: day > first ? shiftDays(day, -1) : null,
     next: day < last ? shiftDays(day, 1) : null,
     lines,
-    suggestions,
+    suggestions: vocabulary.suggestions,
+    references: vocabulary.references,
     done: lines.filter((line) => line.done).length,
     total: lines.length,
   }

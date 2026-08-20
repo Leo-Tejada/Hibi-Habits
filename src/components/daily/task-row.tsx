@@ -1,53 +1,31 @@
 'use client'
 
 import { formatClock } from '@/lib/dates/time'
+import { subjectOf } from '@/lib/tasks/syntax'
 import type { DailyLine } from '@/types/daily'
+import { LINE_PAD } from './line-metrics'
+import { ClockText, TaskText, type References } from './task-text'
 
 function Clock({ line }: { line: DailyLine }) {
-  if (line.start === null) return null
+  if (line.start === null) return <span aria-hidden className="w-24 shrink-0" />
 
   const span = line.end === null ? '' : `–${formatClock(line.end)}`
 
   return (
-    <span className="shrink-0 font-mono text-[11px] tabular-nums text-ink-faint">
-      {formatClock(line.start)}
-      {span}
-    </span>
-  )
-}
-
-/** The reference is underlined, which is what says "this counts for something". */
-function Subject({ line }: { line: DailyLine }) {
-  const struck = line.done ? 'line-through' : ''
-
-  if (!line.reference && !line.unresolved) {
-    return <span className={`truncate ${struck}`}>{line.name}</span>
-  }
-
-  return (
-    <span className={`truncate ${struck}`}>
-      <span
-        title={line.unresolved ? 'Written like a link, but no habit by that name' : undefined}
-        className={
-          line.unresolved
-            ? 'text-alert underline decoration-wavy underline-offset-4'
-            : 'text-ink-dim underline decoration-dotted underline-offset-4'
-        }
-      >
-        {line.reference}
-      </span>
-      {line.name && <span className="text-ink-faint">.</span>}
-      {line.name}
+    <span className="w-24 shrink-0 text-right font-mono text-[13px] tabular-nums">
+      <ClockText text={`${formatClock(line.start)}${span}`} />
     </span>
   )
 }
 
 export function TaskRow({
   line,
+  references,
   onToggle,
   onGrab,
 }: {
   line: DailyLine
+  references: References
   onToggle: (done: boolean) => void
   onGrab: (event: React.PointerEvent) => void
 }) {
@@ -56,7 +34,7 @@ export function TaskRow({
 
   return (
     <li
-      className={`group flex items-center gap-3 rounded-md px-2 py-1.5 ${
+      className={`group flex items-center gap-4 rounded-lg ${LINE_PAD} ${
         line.happeningNow ? 'bg-well ring-1 ring-inset ring-line' : ''
       } ${locked ? 'opacity-45' : ''}`}
     >
@@ -64,15 +42,19 @@ export function TaskRow({
         type="checkbox"
         checked={line.done}
         disabled={line.settled}
-        aria-label={line.name}
+        aria-label={line.raw}
         onClick={(event) => event.stopPropagation()}
         onChange={(event) => onToggle(event.target.checked)}
-        className="size-3.5 shrink-0 cursor-pointer appearance-none rounded-[3px] border border-line-soft bg-ground checked:border-ink checked:bg-ink disabled:cursor-not-allowed"
+        className="size-4 shrink-0 cursor-pointer appearance-none rounded border border-line-soft bg-ground checked:border-ink checked:bg-ink disabled:cursor-not-allowed"
       />
 
-      <span className={`min-w-0 flex-1 text-[13px] ${line.done ? 'text-ink-faint' : 'text-ink'}`}>
-        <Subject line={line} />
-      </span>
+      <TaskText
+        raw={subjectOf(line.raw)}
+        references={references}
+        className={`min-w-0 flex-1 truncate text-[16px] leading-7 ${
+          line.done ? 'text-ink-faint line-through' : 'text-ink'
+        }`}
+      />
 
       <Clock line={line} />
 
@@ -80,7 +62,7 @@ export function TaskRow({
         onPointerDown={draggable ? onGrab : undefined}
         onClick={(event) => event.stopPropagation()}
         aria-hidden
-        className={`w-3 shrink-0 text-center font-mono text-[11px] leading-none ${
+        className={`w-3 shrink-0 text-center font-mono text-[13px] leading-none ${
           draggable
             ? 'cursor-grab text-ink-faint opacity-0 group-hover:opacity-100'
             : 'text-transparent'

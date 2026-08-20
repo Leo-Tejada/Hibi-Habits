@@ -3,8 +3,11 @@
 /*
  * Hibi Habits — theme tokens.
  *
- * One rule holds the whole palette together: hue means category and
- * nothing else. Health, Relationships and Independence own the only
+ * Hue means category, with one exception: the daily editor paints figures
+ * in --figure, a syntax colour chosen to sit outside the category triad
+ * so it can never be mistaken for one.
+ *
+ * Otherwise hue means category and nothing else. Health, Relationships and Independence own the only
  * three colours on the page. Everything else — panels, rules, figures,
  * the calendar — is ink on ground, so a splash of colour always tells
  * you which part of life you are looking at.
@@ -35,6 +38,7 @@
   --independence: #4356a6;
 
   --alert: #b45238;
+  --figure: #8a6d1f;
 }
 
 /*
@@ -61,6 +65,7 @@
     --independence: #7c93e8;
 
     --alert: #e4785e;
+    --figure: #c8a85a;
   }
 }
 
@@ -81,6 +86,7 @@
   --independence: #7c93e8;
 
   --alert: #e4785e;
+  --figure: #c8a85a;
 }
 
 @theme inline {
@@ -96,6 +102,7 @@
   --color-relationships: var(--relationships);
   --color-independence: var(--independence);
   --color-alert: var(--alert);
+  --color-figure: var(--figure);
 
   --font-sans: "Helvetica Neue", Helvetica, Arial, ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono-file), "JetBrains Mono NL", ui-monospace, SFMono-Regular, Menlo,

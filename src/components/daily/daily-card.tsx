@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { Card } from '@/components/ui/card'
-import { Eyebrow } from '@/components/ui/eyebrow'
 import { longDate } from '@/lib/dates/format'
 import { saveDay, setTaskDone } from '@/server/actions/daily'
 import type { DailyLine, DailyView } from '@/types/daily'
@@ -39,7 +38,7 @@ function Step({ to, glyph, label }: { to: string | null; glyph: string; label: s
         event.stopPropagation()
         if (to) router.push(`/daily?day=${to}`)
       }}
-      className="rounded-full px-2 py-0.5 text-[13px] leading-none text-ink-faint enabled:hover:text-ink disabled:opacity-30"
+      className="rounded-full px-2.5 py-1 text-[18px] leading-none text-ink-faint enabled:hover:text-ink disabled:opacity-25"
     >
       {glyph}
     </button>
@@ -50,11 +49,19 @@ export function DailyCard({ view }: { view: DailyView }) {
   const router = useRouter()
   const [entries, setEntries] = useState<EditorLine[] | null>(null)
   const [order, setOrder] = useState<DailyLine[] | null>(null)
-  const [saving, startSaving] = useTransition()
+  const [checks, setChecks] = useState<Record<string, boolean>>({})
+  const [, startSaving] = useTransition()
   const listRef = useRef<HTMLUListElement>(null)
 
   const editing = entries !== null
-  const lines = order ?? view.lines
+
+  // Ticking a box answers immediately and tells the server afterwards.
+  // Waiting for a round trip to a database in another country is what
+  // made this feel broken.
+  const lines = (order ?? view.lines).map((line) =>
+    line.id in checks ? { ...line, done: checks[line.id] } : line
+  )
+  const done = lines.filter((line) => line.done).length
 
   useDayShortcuts(view, editing)
 
@@ -62,45 +69,46 @@ export function DailyCard({ view }: { view: DailyView }) {
     setEntries(null)
     startSaving(async () => {
       await saveDay(view.day, next.map(({ id, raw }) => ({ id, raw })))
+      // Only here: new lines come back with ids that only the server knows.
       router.refresh()
     })
   }
 
-  function toggle(line: DailyLine, done: boolean): void {
-    startSaving(async () => {
-      await setTaskDone(line.id, done)
-      router.refresh()
-    })
+  function toggle(line: DailyLine, isDone: boolean): void {
+    setChecks((previous) => ({ ...previous, [line.id]: isDone }))
+    startSaving(() => setTaskDone(line.id, isDone))
   }
 
   function reorder(next: DailyLine[]): void {
     setOrder(next)
-    startSaving(async () => {
-      await saveDay(
+    startSaving(() =>
+      saveDay(
         view.day,
         next.map((line) => ({ id: line.id, raw: line.raw }))
       )
-      router.refresh()
-      setOrder(null)
-    })
+    )
   }
 
   const grab = useRowDrag(listRef, lines, reorder)
 
   return (
     <Card
-      className={`w-full max-w-xl px-6 pt-5 pb-6 ${saving ? 'opacity-90' : ''}`}
+      className="w-full max-w-2xl px-8 pt-7 pb-8"
       onClick={() => (editing ? commit(entries) : setEntries(toEntries(view.lines)))}
     >
-      <header className="flex items-baseline justify-between gap-4 pb-4">
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-[15px] tracking-[-0.01em]">{STANDING_LABEL[view.standing]}</h1>
-          <Eyebrow>{longDate(view.day)}</Eyebrow>
+      <header className="flex items-baseline justify-between gap-4 pb-6">
+        <div className="flex items-baseline gap-4">
+          <h1 className="text-[24px] font-bold leading-none tracking-[-0.02em]">
+            {STANDING_LABEL[view.standing]}
+          </h1>
+          <span className="font-mono text-[12px] uppercase tracking-[0.14em] text-ink-faint">
+            {longDate(view.day)}
+          </span>
         </div>
         <div className="flex items-center gap-1">
-          <Eyebrow className="mr-2">
-            {view.done}/{view.total}
-          </Eyebrow>
+          <span className="mr-3 font-mono text-[14px] tabular-nums text-ink-dim">
+            {done}/{lines.length}
+          </span>
           <Step to={view.previous} glyph="‹" label="Previous day" />
           <Step to={view.next} glyph="›" label="Next day" />
         </div>
@@ -110,14 +118,21 @@ export function DailyCard({ view }: { view: DailyView }) {
         <LineEditor
           lines={entries}
           suggestions={view.suggestions}
+          references={view.references}
           onChange={setEntries}
           onDone={() => commit(entries)}
         />
       ) : (
-        <TaskList lines={lines} listRef={listRef} onToggle={toggle} onGrab={grab} />
+        <TaskList
+          lines={lines}
+          references={view.references}
+          listRef={listRef}
+          onToggle={toggle}
+          onGrab={grab}
+        />
       )}
 
-      <p className="pt-5 text-center text-[11px] text-ink-faint">
+      <p className="pt-7 text-center text-[12px] text-ink-faint">
         {editing ? 'Enter for a new line · Esc to finish' : 'Click the card to edit'}
       </p>
     </Card>
@@ -126,30 +141,33 @@ export function DailyCard({ view }: { view: DailyView }) {
 
 function TaskList({
   lines,
+  references,
   listRef,
   onToggle,
   onGrab,
 }: {
   lines: DailyLine[]
+  references: DailyView['references']
   listRef: React.RefObject<HTMLUListElement | null>
   onToggle: (line: DailyLine, done: boolean) => void
   onGrab: (index: number) => (event: React.PointerEvent) => void
 }) {
   if (lines.length === 0) {
     return (
-      <p className="py-6 text-center text-[12px] text-ink-faint">
+      <p className="py-8 text-center text-[14px] text-ink-faint">
         Nothing written for this day. Click to start.
       </p>
     )
   }
 
   return (
-    <ul ref={listRef} className="flex flex-col gap-0.5">
+    <ul ref={listRef} className="flex flex-col">
       {lines.map((line, index) => (
         <TaskRow
           key={line.id}
           line={line}
-          onToggle={(done) => onToggle(line, done)}
+          references={references}
+          onToggle={(isDone) => onToggle(line, isDone)}
           onGrab={onGrab(index)}
         />
       ))}
@@ -176,8 +194,8 @@ function useDayShortcuts(view: DailyView, editing: boolean): void {
 
 /**
  * Pointer-based reordering, so it works with a finger as well as a mouse.
- * Row midpoints are measured once at grab time and compared against the
- * pointer, which is enough for a short vertical list.
+ * The list is reordered locally as you move and written once on release —
+ * nothing waits on the network while you are still dragging.
  */
 function useRowDrag(
   listRef: React.RefObject<HTMLUListElement | null>,
@@ -192,8 +210,9 @@ function useRowDrag(
     let target = index
 
     function onMove(move: PointerEvent): void {
-      target = rows.findIndex((row) => move.clientY < row.bottom)
-      if (target === -1) target = rows.length - 1
+      const found = rows.findIndex((row) => move.clientY < row.bottom)
+
+      target = found === -1 ? rows.length - 1 : found
     }
 
     function onUp(): void {

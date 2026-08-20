@@ -67,3 +67,64 @@ export function formatLine(line: ParsedLine): string {
 
   return `${subject}${clock}${closing}`
 }
+
+/**
+ * Colour classes for one line. Everything is a token so the pieces can be
+ * painted separately — and so an editor overlay can sit exactly on top of
+ * a monospaced input, character for character.
+ */
+export type TokenKind = 'reference' | 'head' | 'name' | 'punct' | 'number' | 'plain'
+
+export type Token = { text: string; kind: TokenKind }
+
+function pushText(tokens: Token[], text: string, kind: TokenKind): void {
+  if (text !== '') tokens.push({ text, kind })
+}
+
+/** Digits are figures, ':' and '-' are punctuation, spaces are neither. */
+function tokenizeTime(tokens: Token[], tail: string): void {
+  const lead = /^\s*/.exec(tail)?.[0] ?? ''
+
+  pushText(tokens, lead, 'plain')
+
+  for (const piece of tail.slice(lead.length).split(/([:-])/)) {
+    pushText(tokens, piece, /^[:-]$/.test(piece) ? 'punct' : 'number')
+  }
+}
+
+/** The concatenated token text always equals the input, exactly. */
+export function tokenizeLine(raw: string): Token[] {
+  const tokens: Token[] = []
+  const timed = TRAILING_TIME.exec(raw)
+  const body = raw.slice(0, timed ? timed.index : raw.length)
+  const lead = /^\s*/.exec(body)?.[0] ?? ''
+  const rest = body.slice(lead.length)
+  const breakAt = rest.search(/\s/)
+  const head = breakAt === -1 ? rest : rest.slice(0, breakAt)
+  const linked = REFERENCE.exec(head)
+
+  pushText(tokens, lead, 'plain')
+
+  if (linked) {
+    pushText(tokens, linked[1], 'reference')
+    pushText(tokens, '.', 'punct')
+    pushText(tokens, linked[2], 'name')
+    pushText(tokens, breakAt === -1 ? '' : rest.slice(breakAt), 'name')
+  } else {
+    // No dot, so this may still be a habit with no task part — "Sit". The
+    // first word is set apart as `head` and whoever knows the habit names
+    // decides whether it is a reference or just a word.
+    pushText(tokens, head, 'head')
+    pushText(tokens, breakAt === -1 ? '' : rest.slice(breakAt), 'name')
+  }
+
+  if (timed) tokenizeTime(tokens, raw.slice(timed.index))
+  return tokens
+}
+
+/** The line without its trailing time, for views that show the clock separately. */
+export function subjectOf(raw: string): string {
+  const timed = TRAILING_TIME.exec(raw)
+
+  return timed ? raw.slice(0, timed.index) : raw
+}

@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { LineEntry } from '@/types/daily'
+import { LINE_PAD, LINE_TYPE } from './line-metrics'
+import { TaskText, type References } from './task-text'
 
 export type EditorLine = LineEntry & { locked: boolean }
 
@@ -31,15 +33,21 @@ function withHead(value: string, replacement: string): string {
  * Edit mode. It reads as a block of text, but every line is bound to its
  * task — which is what lets a generated line genuinely refuse edits, and
  * what stops fixing a typo from losing the fact that a task was done.
+ *
+ * Colour comes from a highlight layer sitting exactly behind a
+ * transparent input. The text is monospaced and both layers take their
+ * metrics from `line-metrics`, so the paint never slides off the letters.
  */
 export function LineEditor({
   lines,
   suggestions,
+  references,
   onChange,
   onDone,
 }: {
   lines: EditorLine[]
   suggestions: string[]
+  references: References
   onChange: (next: EditorLine[]) => void
   onDone: () => void
 }) {
@@ -103,25 +111,38 @@ export function LineEditor({
   }
 
   return (
-    <ul className="flex flex-col gap-0.5" onClick={(event) => event.stopPropagation()}>
+    <ul className="flex flex-col" onClick={(event) => event.stopPropagation()}>
       {lines.map((line, index) => (
-        <li key={line.id ?? `new-${index}`} className="relative">
+        <li
+          key={line.id ?? `new-${index}`}
+          className={`relative rounded-lg ${focused === index ? 'bg-well' : ''}`}
+        >
+          <TaskText
+            raw={line.raw}
+            references={references}
+            className={`pointer-events-none absolute inset-0 overflow-hidden whitespace-pre ${LINE_TYPE} ${LINE_PAD} ${
+              line.locked ? 'opacity-55' : ''
+            }`}
+          />
+
           <input
             ref={(element) => {
               fields.current[index] = element
             }}
             value={line.raw}
             readOnly={line.locked}
+            spellCheck={false}
+            autoComplete="off"
             aria-label={line.locked ? `${line.raw} (from a habit, locked)` : 'Task line'}
-            title={line.locked ? 'Written by a habit’s schedule — edit the habit to change it' : undefined}
+            title={
+              line.locked ? 'Written by a habit’s schedule — edit the habit to change it' : undefined
+            }
             onChange={(event) => replace(index, event.target.value)}
             onKeyDown={(event) => onKeyDown(event, index)}
             onFocus={() => setFocused(index)}
             onBlur={() => setFocused((at) => (at === index ? null : at))}
-            className={`w-full rounded-md bg-transparent px-2 py-1.5 font-mono text-[13px] outline-none ${
-              line.locked
-                ? 'cursor-not-allowed text-ink-faint'
-                : 'text-ink caret-ink focus:bg-well'
+            className={`relative w-full bg-transparent text-transparent caret-ink outline-none focus-visible:outline-none ${LINE_TYPE} ${LINE_PAD} ${
+              line.locked ? 'cursor-not-allowed' : ''
             }`}
           />
 
@@ -137,17 +158,11 @@ export function LineEditor({
   )
 }
 
-function Suggestions({
-  options,
-  onPick,
-}: {
-  options: string[]
-  onPick: (option: string) => void
-}) {
+function Suggestions({ options, onPick }: { options: string[]; onPick: (option: string) => void }) {
   if (options.length === 0) return null
 
   return (
-    <ul className="absolute left-2 top-full z-10 mt-0.5 min-w-56 overflow-hidden rounded-md border border-line bg-panel shadow-lg">
+    <ul className="absolute left-3 top-full z-10 mt-1 min-w-64 overflow-hidden rounded-lg border border-line bg-panel shadow-lg">
       {options.map((option, index) => (
         <li key={option}>
           <button
@@ -156,10 +171,10 @@ function Suggestions({
               event.preventDefault()
               onPick(option)
             }}
-            className="block w-full px-2.5 py-1.5 text-left font-mono text-[12px] text-ink-dim hover:bg-well hover:text-ink"
+            className="block w-full px-3 py-2 text-left font-mono text-[14px] text-ink-dim hover:bg-well hover:text-ink"
           >
             {option}
-            {index === 0 && <span className="ml-2 text-[10px] text-ink-faint">tab</span>}
+            {index === 0 && <span className="ml-2 text-[11px] text-ink-faint">tab</span>}
           </button>
         </li>
       ))}

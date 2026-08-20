@@ -73,13 +73,20 @@ export async function saveDay(day: string, entries: LineEntry[]): Promise<void> 
   const habits = await habitsByName(user.id)
   const kept = new Set<string>()
 
+  // Collected rather than awaited one by one. The database is a long way
+  // from the server, so a loop of awaits costs a round trip per line;
+  // one transaction costs a single trip however long the day is.
+  const writes = []
+
   for (const [index, entry] of entries.entries()) {
     if (entry.id && generated.has(entry.id)) {
       kept.add(entry.id)
-      await db.task.updateMany({
-        where: { id: entry.id, userId: user.id },
-        data: { sortOrder: index },
-      })
+      writes.push(
+        db.task.updateMany({
+          where: { id: entry.id, userId: user.id },
+          data: { sortOrder: index },
+        })
+      )
       continue
     }
 
@@ -89,22 +96,26 @@ export async function saveDay(day: string, entries: LineEntry[]): Promise<void> 
 
     if (entry.id) {
       kept.add(entry.id)
-      await db.task.updateMany({
-        where: { id: entry.id, userId: user.id, generated: false },
-        data: { ...resolved, sortOrder: index },
-      })
+      writes.push(
+        db.task.updateMany({
+          where: { id: entry.id, userId: user.id, generated: false },
+          data: { ...resolved, sortOrder: index },
+        })
+      )
       continue
     }
 
-    await db.task.create({
-      data: {
-        ...resolved,
-        userId: user.id,
-        dueOn: toDateColumn(target),
-        sortOrder: index,
-        generated: false,
-      },
-    })
+    writes.push(
+      db.task.create({
+        data: {
+          ...resolved,
+          userId: user.id,
+          dueOn: toDateColumn(target),
+          sortOrder: index,
+          generated: false,
+        },
+      })
+    )
   }
 
   const removed = existing
@@ -112,8 +123,10 @@ export async function saveDay(day: string, entries: LineEntry[]): Promise<void> 
     .map((task) => task.id)
 
   if (removed.length > 0) {
-    await db.task.deleteMany({ where: { id: { in: removed }, userId: user.id } })
+    writes.push(db.task.deleteMany({ where: { id: { in: removed }, userId: user.id } }))
   }
+
+  if (writes.length > 0) await db.$transaction(writes)
 
   revalidatePath('/daily')
 }
