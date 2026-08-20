@@ -25,7 +25,7 @@ async function recentByQuest(
   const byQuest = new Map<string, Recent>()
 
   for (const row of rows) {
-    if (!row.questId || row.status === TaskStatus.SKIPPED) continue
+    if (!row.questId) continue
 
     const entry = byQuest.get(row.questId) ?? { ...NO_RECENT }
 

@@ -131,11 +131,56 @@ Light and dark are chosen in the top bar and remembered in `localStorage`.
 "Auto" follows the system. A small script in `<head>` applies the stored choice
 before the first paint, so the wrong theme never flashes.
 
+## Daily tasks
+
+One card, centred, nothing else. It has two modes and you click between them.
+
+**View** shows the day's lines: a checkbox, the task, and its clock time. A
+linked task carries a dotted underline under the habit it feeds — that
+underline is what says "this counts for something". A line written like a link
+but matching no habit gets a wavy red underline instead of being quietly
+downgraded to a free task, because that is a typo worth seeing. Whatever is
+happening right now is lit.
+
+**Edit** shows the same day as raw lines you can type. Each line is bound to its
+task, so a line the schedule wrote refuses edits, and fixing a typo never loses
+the fact that a task was done. Enter opens a line, Backspace on an empty one
+removes it, Tab accepts the top suggestion, Escape finishes.
+
+### The line syntax
+
+```
+Calisthenics.Push 19:30-20:30    habit, task, and a span
+Buy bread 13:40                  free task with a time
+Wash dishes                      free task
+```
+
+Only the name is required. `Habit.Task` links the line; everything else counts
+toward nothing. The dot only links when it has no space around it *and* the
+habit exists, so `Dr. Smith 10:00` and `etc.` stay ordinary prose.
+
+### Rules worth knowing
+
+- **Days**: yesterday, today, tomorrow. Chevrons or the arrow keys.
+- **Settling**: a task can be ticked until the end of the day after it was due,
+  then it settles for good. The window is exactly as far as the card can travel,
+  so there is never grace you cannot reach. There is no "skipped" — unchecked is
+  unchecked.
+- **Order**: timed tasks sort themselves by the clock; untimed ones stay where
+  you dragged them, keeping their neighbours.
+- **Rotation**: a habit cycles through names across its occurrences, so one
+  `Calisthenics` on Mondays and Thursdays produces Push, then Pull.
+- **Removing**: deleting the line is the only way. Ticking never removes
+  anything, and a generated line can only be removed by changing its habit.
+
 ## Still to build
 
-Four of the five screens: daily tasks, journal and mood, quests, habits and
-training. The schema already covers them, including the end-of-season
-reflection.
+Three of the five screens: journal and mood, quests, habits and training. The
+schema already covers them, including the end-of-season reflection.
+
+Season task totals — completed against uncompleted for a whole season,
+filterable by whether a task was linked — belong in the reserved Statistics
+square on the homepage.
 
 The calendar squares are blank on purpose — they are held for the hours logged
 at the office, which will arrive from the NFC reader.

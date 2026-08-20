@@ -51,10 +51,10 @@ enum ScheduleKind {
   EVERY_N_DAYS
 }
 
+/// There is no "skipped". Unchecked is unchecked, whatever the reason —
+/// so the numbers cannot be softened by generous self-reporting.
 enum TaskStatus {
   PENDING
-  /// Deliberately stood down. Never counts as a miss.
-  SKIPPED
   DONE
 }
 
@@ -147,6 +147,15 @@ model Habit {
   /// Day the cadence starts counting from.
   anchorOn     DateTime     @db.Date
 
+  /// Names cycled through on successive occurrences, so a Monday and
+  /// Thursday habit called "Calisthenics" can produce Push then Pull.
+  /// Empty means every occurrence is just the habit's own name.
+  rotation     String[]     @default([])
+
+  /// Default clock time for generated tasks, as minutes past midnight.
+  startMinute  Int?
+  endMinute    Int?
+
   /// Optional measurement, e.g. "reps" with a target of 30.
   unit   String?
   target Float?
@@ -174,9 +183,24 @@ model Task {
   userId  String
   habitId String?
   questId String?
+  /// The part after the dot: "Push" in `Calisthenics.Push`. For a task
+  /// with no habit this is the whole name. Empty means the habit's own
+  /// name says everything.
   title   String
   dueOn   DateTime   @db.Date
   status  TaskStatus @default(PENDING)
+
+  /// Minutes past midnight. Both optional: plenty of tasks have no clock.
+  startMinute Int?
+  endMinute   Int?
+
+  /// Manual order among the tasks of a day. Timed tasks sort by the
+  /// clock instead, but an untimed task holds wherever it was dragged.
+  sortOrder   Int        @default(0)
+
+  /// Written by a habit's schedule rather than typed. Generated lines are
+  /// locked in the editor so a stray keystroke cannot break the link.
+  generated   Boolean    @default(false)
 
   completedAt DateTime?
   /// Snapshots of the habit's measurement at the time the task was made,
@@ -193,9 +217,11 @@ model Task {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  /// Makes materialising a habit's tasks idempotent. Postgres does not
-  /// collide NULLs, so free-floating tasks are unaffected by this.
-  @@unique([habitId, dueOn])
+  /// Deliberately not unique. A habit may legitimately appear twice on
+  /// one day — a second session, or a manual `Calisthenics.Pull` beside
+  /// the generated `Calisthenics.Push`. Idempotent generation is the
+  /// generator's job, not a constraint that forbids you writing things.
+  @@index([habitId, dueOn])
   @@index([userId, dueOn])
   @@index([questId])
   @@map("tasks")

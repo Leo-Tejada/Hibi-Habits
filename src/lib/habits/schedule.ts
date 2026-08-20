@@ -41,3 +41,22 @@ export function timesPerWeek(schedule: Schedule): number {
   if (!schedule.intervalDays) return 0
   return 7 / schedule.intervalDays
 }
+
+/**
+ * How many times the habit has come round by `day`, counting from its
+ * anchor. Drives the rotation: occurrence 0 takes the first name, 1 the
+ * second, and it wraps.
+ */
+export function occurrenceIndex(schedule: Schedule, day: DayKey): number {
+  return daysWanted(schedule, schedule.anchorOn, day).length - 1
+}
+
+/** The name this occurrence should carry, or '' when the habit has no rotation. */
+export function rotationNameFor(
+  schedule: Schedule,
+  rotation: string[],
+  day: DayKey
+): string {
+  if (rotation.length === 0) return ''
+  return rotation[occurrenceIndex(schedule, day) % rotation.length]
+}

@@ -77,6 +77,9 @@ async function createQuests(userId: string, seasonId: string, anchorOn: DayKey):
             weekdays: habit.weekdays ?? [],
             intervalDays: habit.intervalDays ?? null,
             anchorOn: toDateColumn(anchorOn),
+            rotation: habit.rotation ?? [],
+            startMinute: habit.startMinute ?? null,
+            endMinute: habit.endMinute ?? null,
             unit: habit.unit ?? null,
             target: habit.target ?? null,
           })),
@@ -136,6 +139,9 @@ async function createLooseHabits(userId: string, anchorOn: DayKey): Promise<void
         weekdays: habit.weekdays ?? [],
         intervalDays: habit.intervalDays ?? null,
         anchorOn: toDateColumn(anchorOn),
+        rotation: habit.rotation ?? [],
+        startMinute: habit.startMinute ?? null,
+        endMinute: habit.endMinute ?? null,
         unit: habit.unit ?? null,
         target: habit.target ?? null,
       },
@@ -168,9 +174,6 @@ function decideOutcome(task: SeededTask, today: DayKey, random: () => number): O
   const roll = random()
 
   if (roll < doneChance) return markDone(task, random)
-  if (roll < doneChance + 0.07) {
-    return { id: task.id, status: TaskStatus.SKIPPED, value: null, completedAt: null }
-  }
   return null
 }
 
@@ -265,7 +268,7 @@ async function main(): Promise<void> {
   await createQuests(user.id, season.id, startsOn)
   await createLooseHabits(user.id, startsOn)
 
-  const tasks = await materializeTasks(user.id, startsOn, today)
+  const tasks = await materializeTasks(user.id, startsOn, shiftDays(today, 1))
   const past = await simulateHistory(user.id, today)
 
   await leaveYesterdayUnfinished(user.id, today)

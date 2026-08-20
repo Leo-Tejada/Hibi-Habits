@@ -1,6 +1,7 @@
 import { connection } from 'next/server'
 import { daysBetween, shiftDays, todayIn, type DayKey } from '@/lib/dates/day'
 import { seasonMonths } from '@/lib/seasons/calendar'
+import { seasonNav } from '@/lib/seasons/nav'
 import {
   parseQuarterKey,
   quarterEnd,
@@ -8,11 +9,10 @@ import {
   quarterLabel,
   quarterRefOf,
   quarterStart,
-  shiftQuarter,
   type QuarterRef,
 } from '@/lib/seasons/quarter'
 import { seasonWindow } from '@/lib/seasons/window'
-import type { HomeView, SeasonHeader, SeasonNav, Tally } from '@/types/home'
+import type { HomeView, SeasonHeader, Tally } from '@/types/home'
 import { currentUser } from '../current-user'
 import { seasonQuests } from './quests'
 import { seasonForQuarter } from './season'
@@ -22,7 +22,7 @@ import { tallyBetween } from './tally'
 /** The window the homepage calls "recent" — a rolling week, ending today. */
 const RECENT_DAYS = 7
 
-const NO_TALLY: Tally = { done: 0, pending: 0, skipped: 0, total: 0 }
+const NO_TALLY: Tally = { done: 0, pending: 0, total: 0 }
 
 type SeasonRow = { id: string; name: string } | null
 
@@ -43,19 +43,6 @@ function headerFor(ref: QuarterRef, row: SeasonRow, today: DayKey): SeasonHeader
     ...window,
     standing: standingOf(ref, today),
     daysUntilStart: Math.max(0, daysBetween(today, startsOn)),
-  }
-}
-
-function navFor(ref: QuarterRef, today: DayKey): SeasonNav {
-  const current = quarterRefOf(today)
-
-  return {
-    quarter: quarterKey(ref),
-    label: quarterLabel(ref),
-    previous: quarterKey(shiftQuarter(ref, -1)),
-    next: quarterKey(shiftQuarter(ref, 1)),
-    current: quarterKey(current),
-    isCurrent: quarterKey(ref) === quarterKey(current),
   }
 }
 
@@ -90,7 +77,7 @@ export async function homeView(requested?: string): Promise<HomeView> {
   return {
     today,
     userName: user.name,
-    nav: navFor(ref, today),
+    nav: seasonNav(ref, today),
     season: header,
     months: seasonMonths(header.startsOn, header.endsOn, today),
     mainQuests: quests.main,

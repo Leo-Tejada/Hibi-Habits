@@ -3,12 +3,11 @@ import { toDateColumn, type DayKey } from '@/lib/dates/day'
 import type { Tally } from '@/types/home'
 import { db } from '../db'
 
-const EMPTY: Tally = { done: 0, pending: 0, skipped: 0, total: 0 }
+const EMPTY: Tally = { done: 0, pending: 0, total: 0 }
 
 const FIELD: Record<TaskStatus, keyof Omit<Tally, 'total'>> = {
   DONE: 'done',
   PENDING: 'pending',
-  SKIPPED: 'skipped',
 }
 
 /** How a stretch of days went, counted by status. */

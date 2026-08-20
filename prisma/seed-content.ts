@@ -5,6 +5,10 @@ export type HabitSpec = {
   scheduleKind: ScheduleKind
   weekdays?: number[]
   intervalDays?: number
+  /** Names cycled across occurrences: Monday Push, Thursday Pull. */
+  rotation?: string[]
+  startMinute?: number
+  endMinute?: number
   unit?: string
   target?: number
 }
@@ -20,12 +24,17 @@ export type QuestSpec = {
 
 const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6]
 
+/** Minutes past midnight, written the way a clock reads. */
+function at(hours: number, minutes = 0): number {
+  return hours * 60 + minutes
+}
+
 function weekly(weekdays: number[], extra: Partial<HabitSpec> = {}): Partial<HabitSpec> {
   return { scheduleKind: ScheduleKind.WEEKLY_DAYS, weekdays, ...extra }
 }
 
-function everyNDays(intervalDays: number): Partial<HabitSpec> {
-  return { scheduleKind: ScheduleKind.EVERY_N_DAYS, intervalDays }
+function everyNDays(intervalDays: number, extra: Partial<HabitSpec> = {}): Partial<HabitSpec> {
+  return { scheduleKind: ScheduleKind.EVERY_N_DAYS, intervalDays, ...extra }
 }
 
 /** One main quest per category, then as many side quests as wanted. */
@@ -37,8 +46,24 @@ export const QUESTS: QuestSpec[] = [
     intent: 'Freestanding, ten seconds, before the season closes.',
     progress: 45,
     habits: [
-      { title: 'Calisthenics · push', ...weekly([1, 4]), unit: 'reps', target: 60 } as HabitSpec,
-      { title: 'Wall handstand hold', ...weekly([1, 3, 5]), unit: 'sec', target: 60 } as HabitSpec,
+      {
+        title: 'Calisthenics',
+        ...weekly([1, 4]),
+        rotation: ['Push', 'Pull'],
+        startMinute: at(19, 30),
+        endMinute: at(20, 30),
+        unit: 'reps',
+        target: 60,
+      } as HabitSpec,
+      {
+        title: 'Handstand',
+        ...weekly([1, 3, 5]),
+        rotation: ['Wall-hold', 'Freestanding'],
+        startMinute: at(18, 30),
+        endMinute: at(19),
+        unit: 'sec',
+        target: 60,
+      } as HabitSpec,
     ],
   },
   {
@@ -49,7 +74,12 @@ export const QUESTS: QuestSpec[] = [
     progress: 70,
     habits: [
       { title: 'Call home', ...everyNDays(7) } as HabitSpec,
-      { title: 'Sunday lunch, phone away', ...weekly([0]) } as HabitSpec,
+      {
+        title: 'Sunday lunch',
+        ...weekly([0]),
+        startMinute: at(14),
+        endMinute: at(15, 30),
+      } as HabitSpec,
     ],
   },
   {
@@ -59,8 +89,16 @@ export const QUESTS: QuestSpec[] = [
     intent: 'Five screens, used every day by at least one person: me.',
     progress: 30,
     habits: [
-      { title: 'Write code', ...weekly([1, 2, 3, 4, 5]), unit: 'min', target: 90 } as HabitSpec,
-      { title: 'Ship something visible', ...weekly([5]) } as HabitSpec,
+      {
+        title: 'Hibi',
+        ...weekly([1, 2, 3, 4, 5]),
+        rotation: ['Build', 'Polish'],
+        startMinute: at(9),
+        endMinute: at(10, 30),
+        unit: 'min',
+        target: 90,
+      } as HabitSpec,
+      { title: 'Ship-something', ...weekly([5]) } as HabitSpec,
     ],
   },
   {
@@ -69,7 +107,15 @@ export const QUESTS: QuestSpec[] = [
     title: 'Read six books',
     intent: 'Two a month. Finished, not started.',
     progress: 55,
-    habits: [{ title: 'Read', ...weekly(EVERY_DAY), unit: 'pages', target: 20 } as HabitSpec],
+    habits: [
+      {
+        title: 'Read',
+        ...weekly(EVERY_DAY),
+        startMinute: at(22),
+        unit: 'pages',
+        target: 20,
+      } as HabitSpec,
+    ],
   },
   {
     kind: QuestKind.SIDE,
@@ -77,7 +123,16 @@ export const QUESTS: QuestSpec[] = [
     title: 'Sit every morning',
     intent: 'Ten minutes before touching the phone.',
     progress: 62,
-    habits: [{ title: 'Morning sit', ...weekly(EVERY_DAY), unit: 'min', target: 10 } as HabitSpec],
+    habits: [
+      {
+        title: 'Sit',
+        ...weekly(EVERY_DAY),
+        startMinute: at(7),
+        endMinute: at(7, 10),
+        unit: 'min',
+        target: 10,
+      } as HabitSpec,
+    ],
   },
   {
     kind: QuestKind.SIDE,
@@ -85,7 +140,9 @@ export const QUESTS: QuestSpec[] = [
     title: 'Three months of runway',
     intent: 'Save until the buffer covers a whole season.',
     progress: 40,
-    habits: [{ title: "Log the day's spending", ...weekly(EVERY_DAY) } as HabitSpec],
+    habits: [
+      { title: 'Spending', ...weekly(EVERY_DAY), startMinute: at(21, 30) } as HabitSpec,
+    ],
   },
   {
     kind: QuestKind.SIDE,
@@ -93,7 +150,7 @@ export const QUESTS: QuestSpec[] = [
     title: 'See people in person',
     intent: 'One friend, face to face, every fortnight.',
     progress: 25,
-    habits: [{ title: 'Reach out to a friend', ...everyNDays(14) } as HabitSpec],
+    habits: [{ title: 'Reach-out', ...everyNDays(14) } as HabitSpec],
   },
 ]
 
@@ -101,7 +158,17 @@ export const QUESTS: QuestSpec[] = [
 export const LOOSE_HABITS: { area: Subcategory; habit: HabitSpec }[] = [
   {
     area: Subcategory.BODY,
-    habit: { title: 'Stretch before bed', ...weekly(EVERY_DAY) } as HabitSpec,
+    habit: { title: 'Stretch', ...weekly(EVERY_DAY), startMinute: at(23) } as HabitSpec,
+  },
+  {
+    area: Subcategory.GROWTH,
+    habit: {
+      title: 'MathsIII',
+      ...weekly([2, 4]),
+      rotation: ['Matlab-practice', 'Problem-set'],
+      startMinute: at(11),
+      endMinute: at(13),
+    } as HabitSpec,
   },
 ]
 

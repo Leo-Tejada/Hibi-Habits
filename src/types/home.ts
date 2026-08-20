@@ -2,6 +2,7 @@ import type { QuestStatus, Subcategory } from '@/generated/prisma/enums'
 import type { DayKey } from '@/lib/dates/day'
 import type { CalendarMonth } from '@/lib/seasons/calendar'
 import type { QuarterKey } from '@/lib/seasons/quarter'
+import type { SeasonNav } from '@/lib/seasons/nav'
 import type { Category } from '@/lib/taxonomy'
 
 /**
@@ -26,16 +27,6 @@ export type SeasonHeader = {
   daysUntilStart: number
 }
 
-/** What the switcher in the corner needs in order to move through time. */
-export type SeasonNav = {
-  quarter: QuarterKey
-  label: string
-  previous: QuarterKey
-  next: QuarterKey
-  current: QuarterKey
-  isCurrent: boolean
-}
-
 export type QuestCard = {
   id: string
   category: Category
@@ -56,7 +47,9 @@ export type Signal = {
   detail?: string
 }
 
-export type Tally = { done: number; pending: number; skipped: number; total: number }
+export type Tally = { done: number; pending: number; total: number }
+
+export type { SeasonNav }
 
 export type HomeView = {
   today: DayKey

@@ -13,7 +13,7 @@ export default async function HomePage(props: PageProps<'/'>) {
 
   return (
     <div className="flex min-h-full flex-col">
-      <TopBar today={view.today} nav={view.nav} />
+      <TopBar today={view.today} nav={view.nav} current="/" />
 
       <main className="mx-auto w-full max-w-[1400px] flex-1 px-6 py-5">
         <SeasonPanel season={view.season} months={view.months} />
