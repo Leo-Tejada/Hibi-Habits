@@ -109,8 +109,13 @@
     monospace;
 }
 
-body {
+/* The ground sits on <html> so it shows before the canvas has painted and
+   behind it afterwards; <body> stays transparent to let the gradient up. */
+html {
   background: var(--ground);
+}
+
+body {
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
 }

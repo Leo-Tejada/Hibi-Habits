@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import localFont from 'next/font/local'
+import { GradientBackground } from '@/components/ui/gradient-background'
 import { THEME_BOOT_SCRIPT } from '@/lib/theme'
 import './globals.css'
 
@@ -34,7 +35,10 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
-      <body className="min-h-full font-sans text-[13px] leading-normal">{children}</body>
+      <body className="min-h-full font-sans text-[13px] leading-normal">
+        <GradientBackground />
+        {children}
+      </body>
     </html>
   )
 }
