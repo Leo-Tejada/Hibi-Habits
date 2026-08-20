@@ -3,6 +3,16 @@
 import { ShaderGradient, ShaderGradientCanvas } from '@shadergradient/react'
 import { useSyncExternalStore } from 'react'
 
+/**
+ * The gradient, exactly as exported from shadergradient.co.
+ *
+ * The whole design lives in this one string — colours, shape, camera,
+ * grain, animation — so restyling the app's background means pasting a
+ * new URL here and nothing else.
+ */
+const GRADIENT_URL =
+  'https://shadergradient.co/customize?animate=on&axesHelper=off&brightness=1.2&cAzimuthAngle=180&cDistance=38&cPolarAngle=90&cameraZoom=1&color1=%23ff5005&color2=%23dbba95&color3=%238a0000&destination=onCanvas&embedMode=off&envPreset=city&format=gif&fov=45&frameRate=10&gizmoHelper=hide&grain=on&lightType=3d&pixelDensity=1&positionX=-1.4&positionY=0&positionZ=0&range=disabled&rangeEnd=40&rangeStart=0&reflection=0.1&rotationX=0&rotationY=10&rotationZ=50&shader=defaults&type=sphere&uAmplitude=1&uDensity=1.3&uFrequency=5.5&uSpeed=0.4&uStrength=4&uTime=0&wireframe=false&zoomOut=false'
+
 function subscribeToMotion(listener: () => void): () => void {
   const query = window.matchMedia('(prefers-reduced-motion: reduce)')
 
@@ -31,6 +41,7 @@ function usePrefersReducedMotion(): boolean {
  */
 export function GradientBackground() {
   const still = usePrefersReducedMotion()
+  const url = still ? GRADIENT_URL.replace('animate=on', 'animate=off') : GRADIENT_URL
 
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
@@ -39,48 +50,7 @@ export function GradientBackground() {
         pointerEvents="none"
         fov={45}
       >
-        <ShaderGradient
-          animate={still ? 'off' : 'on'}
-          axesHelper="off"
-          brightness={1.2}
-          cAzimuthAngle={180}
-          cDistance={38}
-          cPolarAngle={90}
-          cameraZoom={1}
-          color1="#ff5005"
-          color2="#dbba95"
-          color3="#8a0000"
-          destination="onCanvas"
-          embedMode="off"
-          envPreset="city"
-          format="gif"
-          fov={45}
-          frameRate={10}
-          gizmoHelper="hide"
-          grain="on"
-          lightType="3d"
-          pixelDensity={1}
-          positionX={-1.4}
-          positionY={0}
-          positionZ={0}
-          range="disabled"
-          rangeEnd={40}
-          rangeStart={0}
-          reflection={0.1}
-          rotationX={0}
-          rotationY={10}
-          rotationZ={50}
-          shader="defaults"
-          type="sphere"
-          uAmplitude={1}
-          uDensity={1.3}
-          uFrequency={5.5}
-          uSpeed={0.4}
-          uStrength={4}
-          uTime={0}
-          wireframe={false}
-          zoomOut={false}
-        />
+        <ShaderGradient control="query" urlString={url} />
       </ShaderGradientCanvas>
     </div>
   )
