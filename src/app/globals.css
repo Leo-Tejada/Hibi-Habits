@@ -11,6 +11,11 @@
  *
  * Two typefaces, no more. Helvetica Neue says the things a person wrote;
  * JetBrains Mono NL says the things the app counted.
+ *
+ * The mono is shipped with the app, since no system carries it. Helvetica
+ * Neue cannot be shipped — it is proprietary — so it is named first and
+ * the stack degrades from there: Apple devices have it, Windows lands on
+ * Arial, Android on its default grotesque.
  */
 
 :root {
@@ -93,7 +98,7 @@
   --color-alert: var(--alert);
 
   --font-sans: "Helvetica Neue", Helvetica, Arial, ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono NL", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+  --font-mono: var(--font-mono-file), "JetBrains Mono NL", ui-monospace, SFMono-Regular, Menlo,
     monospace;
 }
 

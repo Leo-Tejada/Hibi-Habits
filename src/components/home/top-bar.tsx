@@ -16,7 +16,7 @@ const SCREENS = [
 function Wordmark() {
   return (
     <span className="flex items-baseline gap-2.5">
-      <span className="text-[18px] leading-none font-medium tracking-[-0.02em]">hibi</span>
+      <span className="text-[18px] leading-none font-medium tracking-[-0.02em]">Hibi Habits</span>
       <span className="text-[13px] leading-none text-ink-faint">日々</span>
     </span>
   )

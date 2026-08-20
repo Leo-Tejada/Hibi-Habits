@@ -11,7 +11,7 @@ import { MainQuestCard, VacantQuestCard } from './main-quest-card'
 export function MainQuests({ quests }: { quests: QuestCard[] }) {
   return (
     <section>
-      <SectionHead title="Main quests" note="One per category, fixed for the season" />
+      <SectionHead title="Main quests"/>
       <div className="grid gap-3 md:grid-cols-3">
         {CATEGORIES.map((category) => {
           const quest = quests.find((candidate) => candidate.category === category)

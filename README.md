@@ -51,6 +51,23 @@ deployment environment. Prisma 7 needs a driver adapter, wired up in
 `src/server/db.ts`. The generated client is gitignored, which is why
 `postinstall` regenerates it on every install, including on Vercel.
 
+### Connection pooling
+
+The database sits behind Supabase's pooler, and the ceiling is
+(app instances × pool size), not pool size alone. `src/server/db.ts` caps each
+pool at 3 — override with `DATABASE_POOL_MAX`. Running out surfaces as an
+`EMAXCONNS` error on an innocent-looking query, not as anything resembling a bug.
+
+Two ports are available on the same host:
+
+| Port | Mode        | Use for                                              |
+| ---- | ----------- | ---------------------------------------------------- |
+| 5432 | session     | local development, and migrations                    |
+| 6543 | transaction | anything serverless, where instances come and go     |
+
+Both are verified to work with Prisma 7 and `@prisma/adapter-pg`, interactive
+transactions included. Prefer 6543 for the deployed app.
+
 Other scripts: `npm run typecheck`, `npm run lint`, `npm run build`,
 `npm run db:studio`.
 
@@ -99,9 +116,16 @@ the only three colours on screen; every panel, rule and figure is ink on ground.
 A splash of colour always tells you which part of life you are looking at.
 
 Two typefaces: Helvetica Neue for the things a person wrote, JetBrains Mono NL
-for the things the app counted. Both are expected to be installed locally — the
-app loads no web fonts, so on a device without them the stacks fall back to the
-nearest system face.
+for the things the app counted.
+
+JetBrains Mono NL ships with the app, subset to Latin — no operating system
+carries it, so without that it would fall back everywhere but the machine it was
+built on. It is SIL Open Font Licensed; see `src/app/fonts/NOTICE.md`.
+
+Helvetica Neue is *not* shipped. It is proprietary and cannot be redistributed.
+macOS and iOS already have it; Windows falls back to Arial and Android to its
+default grotesque, both of which are close enough that the layout does not
+shift.
 
 Light and dark are chosen in the top bar and remembered in `localStorage`.
 "Auto" follows the system. A small script in `<head>` applies the stored choice
