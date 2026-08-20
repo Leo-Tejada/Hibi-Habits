@@ -3,6 +3,22 @@
 import { ShaderGradient, ShaderGradientCanvas } from '@shadergradient/react'
 import { useSyncExternalStore } from 'react'
 
+function subscribeToMotion(listener: () => void): () => void {
+  const query = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+  query.addEventListener('change', listener)
+  return () => query.removeEventListener('change', listener)
+}
+
+function readMotion(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+/** Server-rendered markup cannot know the preference, so it assumes stillness. */
+function usePrefersReducedMotion(): boolean {
+  return useSyncExternalStore(subscribeToMotion, readMotion, () => true)
+}
+
 /**
  * A living background, fixed behind every screen.
  *
