@@ -5,10 +5,11 @@ Written after the physics pass. Tree was clean at the commit that carries this.
 ## Where things stand
 
 The habits graph works: the whole tree renders, collapses, expands, drags and
-snaps back; habits and side quests can be created from the `+` on an area node.
-The physics was measured rather than guessed at this time round, and the
-constants in `src/lib/graph/simulation.ts` are hand-tuned by the user on top of
-that.
+snaps back; habits and side quests can be created from the `+` on an area node
+(a habit, or a loose side quest) and from the `+` on a habit node (a side quest
+attached to that habit). The physics was measured rather than guessed at this
+time round, and the constants in `src/lib/graph/simulation.ts` are hand-tuned
+by the user on top of that.
 
 ## What was fixed, and how it was verified
 
@@ -71,9 +72,6 @@ the graph may want to be thicker still, so that is worth offering.
 
 ## Open questions for the user
 
-- Do habits nest under their quest, or sit as siblings of quests under the area?
-  Currently a habit with a `questId` nests under the quest and one without sits
-  under the area. That is what the code does; nobody confirmed it is wanted.
 - Does clicking a quest open the same blank card a habit does, or one with
   `QuestProgress`? Quest nodes are not clickable at all right now.
 - `.claude/skills/graph-skills/` and `skills-lock.json` were committed in
@@ -83,19 +81,26 @@ the graph may want to be thicker still, so that is worth offering.
 
 ## Decisions already made — do not re-ask
 
-- Quests appear on the graph, main and side, under their subcategory.
+- **The pyramid flipped on 2026-08-21**: Category → Subcategory → **Habit** →
+  Quest → Task. A quest hangs off the habit that serves it (and then takes that
+  habit's area); a loose quest stands beside the habits of its own area.
+  `Task.questId` is gone — a quest's recent figures are its serving habit's
+  tasks.
+- Quests appear on the graph, main and side — attached ones under their habit,
+  loose ones under their subcategory.
 - **Main quests are bold, side quests are italic**, and each takes its own step
-  on the fill ladder: `area 45 → questMain 39 → questSide 31 → habit 24` percent
+  on the fill ladder: `area 45 → habit 24 → questMain 39 → questSide 31` percent
   of the category hue. No dashed borders on quests — dashes mean "provisional"
   and belong to the pending node and collapsed branches only.
-- **Habits cannot hold children.** "It is easier that way and I force myself to
-  not make anything a habit."
+- **Habits hold their quests** — the one kind of child a habit has, after the
+  flip. (Before it: "habits cannot hold children".)
 - Habits attach to **subcategories only**, never to a category.
 - Creating a habit asks for **a name only**. Born `WEEKLY_DAYS` with empty
   `weekdays`, which wants no day, so it writes nothing into `/daily` until
-  scheduled. Verified: 0 tasks generated.
+  scheduled — it only suggests itself while a day is being written.
 - Creating a side quest **opens the season silently** if the quarter has none —
-  `upsert`, so two quests named at once cannot race into two seasons.
+  `upsert`, so two quests named at once cannot race into two seasons. A habit
+  node's `+` creates the quest already attached to it.
 - Clicking a habit **morphs it in place** into a blank card; the graph pushes
   aside. The card stays blank on purpose — it is the shell Journal and Quests
   will share.
@@ -106,7 +111,8 @@ the graph may want to be thicker still, so that is worth offering.
   Hue means category and nothing else; depth is carried by fill strength. Mono
   vs Helvetica is the only thing separating structural nodes from habits.
 - **`You` is the one unfilled node** — it belongs to all three categories.
-- Season completion is shown per area on the **homepage**, not on the graph.
+- The **Statistics panel is removed** (2026-08-21) — per-area tallies stopped
+  earning their place beside the quests and signals.
 
 ## How to verify this area
 
@@ -137,6 +143,19 @@ simulation, or the graph will be cold when the slider moves.
 
 ## Environment traps
 
+- **`prisma migrate dev` hangs against the pooler.** With `DATABASE_URL` on
+  Supabase port 6543 there is no error — the CLI sits waiting on a shadow
+  database it cannot create, and `db execute` fails with
+  `prepared statement "s1" already exists` (PgBouncer refuses the CLI's
+  prepared statements). The path that works: hand-write
+  `prisma/migrations/<ts>_<name>/migration.sql` (constraint and index names
+  follow Prisma's `<table>_<column>_fkey` / `<table>_<column>_idx` style —
+  confirm against earlier migrations), apply it with a throwaway `*.mts` at
+  the repo root using the `pg` driver (`bunx tsx`), then hand-insert the
+  `_prisma_migrations` row (`gen_random_uuid()::text`, checksum = `shasum -a
+  256` of the file, `applied_steps_count` 1, `finished_at now()`), then
+  `bunx prisma generate`. Or point `.env` at session mode (5432) and let the
+  CLI work normally. Used for `20260821190000_habits_above_quests`.
 - **The browser tab must have focus.** Not merely be visible —
   `document.hasFocus()`. Without it `/habits` sits on its loading fallback
   forever: the `next/dynamic` `ssr: false` chunk never resolves, `HabitGraph`
@@ -160,11 +179,6 @@ simulation, or the graph will be cold when the slider moves.
   wants its own screen rather than a `+` on an area node.
 - Journal and Quests screens are unbuilt. The user is "not satisfied nor done"
   with the homepage.
-- Season task totals — completed against uncompleted for a whole season,
-  filterable by whether a task was linked — belong in the reserved Statistics
-  square on the homepage.
-- Tasks are materialised up to today only; the daily screen will want to run
-  `materializeTasks` forward as well.
 - Drag-to-reorder on the daily card has never been confirmed with real input.
 
 ## Older, still open

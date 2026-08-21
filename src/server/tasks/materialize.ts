@@ -7,7 +7,6 @@ import { db } from '../db'
 type NewTask = {
   userId: string
   habitId: string
-  questId: string | null
   title: string
   dueOn: Date
   unit: string | null
@@ -34,9 +33,6 @@ export function plannedTasks(habit: HabitModel, from: DayKey, to: DayKey): NewTa
   return daysWanted(schedule, from, to).map((day) => ({
     userId: habit.userId,
     habitId: habit.id,
-    // Copied, not joined: a task records the quest it served at the time,
-    // so re-pointing a habit later never rewrites what already happened.
-    questId: habit.questId,
     title: rotationNameFor(schedule, habit.rotation, day),
     dueOn: toDateColumn(day),
     unit: habit.unit,

@@ -6,7 +6,6 @@ export type HabitNodeView = {
   id: string
   title: string
   subcategory: Subcategory
-  questId: string | null
   /** Archived habits still appear, faded, so a past life stays visible. */
   archived: boolean
 }
@@ -14,7 +13,10 @@ export type HabitNodeView = {
 export type QuestNodeView = {
   id: string
   title: string
-  subcategory: Subcategory
+  /** Only a loose quest carries an area of its own; an attached one
+   *  belongs to its habit's. */
+  subcategory: Subcategory | null
+  habitId: string | null
   kind: QuestKind
 }
 

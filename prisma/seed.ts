@@ -18,7 +18,7 @@ import {
 } from '../src/lib/seasons/quarter'
 import { db } from '../src/server/db'
 import { materializeTasks } from '../src/server/tasks/materialize'
-import { LOOSE_HABITS, PAST_QUESTS, PAST_REFLECTION, QUESTS } from './seed-content'
+import { HABITS, PAST_SEASONS, QUESTS, type PastSeasonSpec, type QuestSpec } from './seed-content'
 
 /** Fixed so re-seeding produces the same history twice. */
 const RANDOM_SEED = 20260820
@@ -55,84 +55,17 @@ async function createSeason(userId: string, ref: QuarterRef) {
   })
 }
 
-async function createQuests(userId: string, seasonId: string, anchorOn: DayKey): Promise<void> {
-  for (const [index, spec] of QUESTS.entries()) {
-    await db.quest.create({
+/**
+ * Habits first: quests hang off them, so their ids must exist to point
+ * at. The map lets a quest name the habit that serves it.
+ */
+async function createHabits(userId: string, anchorOn: DayKey): Promise<Map<string, string>> {
+  const byTitle = new Map<string, string>()
+
+  for (const { area, habit } of HABITS) {
+    const created = await db.habit.create({
       data: {
         userId,
-        seasonId,
-        kind: spec.kind,
-        subcategory: spec.area,
-        title: spec.title,
-        intent: spec.intent,
-        progress: spec.progress,
-        status: QuestStatus.ACTIVE,
-        sortOrder: index,
-        habits: {
-          create: spec.habits.map((habit) => ({
-            userId,
-            subcategory: spec.area,
-            title: habit.title,
-            scheduleKind: habit.scheduleKind,
-            weekdays: habit.weekdays ?? [],
-            intervalDays: habit.intervalDays ?? null,
-            anchorOn: toDateColumn(anchorOn),
-            rotation: habit.rotation ?? [],
-            startMinute: habit.startMinute ?? null,
-            endMinute: habit.endMinute ?? null,
-            unit: habit.unit ?? null,
-            target: habit.target ?? null,
-          })),
-        },
-      },
-    })
-  }
-}
-
-/** The quarter before this one: closed, reflected on, and left alone. */
-async function createClosedSeason(userId: string, ref: QuarterRef): Promise<void> {
-  const season = await createSeason(userId, ref)
-
-  for (const [index, spec] of PAST_QUESTS.entries()) {
-    await db.quest.create({
-      data: {
-        userId,
-        seasonId: season.id,
-        kind: spec.kind,
-        subcategory: spec.area,
-        title: spec.title,
-        intent: spec.intent,
-        progress: spec.progress,
-        status: spec.progress >= 60 ? QuestStatus.COMPLETED : QuestStatus.ABANDONED,
-        sortOrder: index,
-      },
-    })
-  }
-
-  await db.seasonReflection.create({
-    data: {
-      seasonId: season.id,
-      wentWell: PAST_REFLECTION.wentWell,
-      wentBadly: PAST_REFLECTION.wentBadly,
-      learned: PAST_REFLECTION.learned,
-      carryForward: PAST_REFLECTION.carryForward,
-      completedAt: new Date(`${quarterEnd(ref)}T20:00:00.000Z`),
-      ratings: {
-        create: PAST_REFLECTION.ratings.map((rating) => ({
-          subcategory: rating.area,
-          score: rating.score,
-        })),
-      },
-    },
-  })
-}
-
-async function createLooseHabits(userId: string, anchorOn: DayKey): Promise<void> {
-  for (const { area, habit } of LOOSE_HABITS) {
-    await db.habit.create({
-      data: {
-        userId,
-        questId: null,
         subcategory: area,
         title: habit.title,
         scheduleKind: habit.scheduleKind,
@@ -146,7 +79,103 @@ async function createLooseHabits(userId: string, anchorOn: DayKey): Promise<void
         target: habit.target ?? null,
       },
     })
+
+    byTitle.set(habit.title, created.id)
   }
+
+  return byTitle
+}
+
+async function createQuest(
+  userId: string,
+  seasonId: string,
+  spec: QuestSpec,
+  habitsByTitle: Map<string, string>,
+  index: number
+): Promise<void> {
+  // A quest either hangs off the habit that serves it — and then takes
+  // that habit's area — or is loose and carries an area of its own.
+  const habitId = spec.habitTitle ? (habitsByTitle.get(spec.habitTitle) ?? null) : null
+
+  if (spec.habitTitle && !habitId) {
+    throw new Error(`Quest "${spec.title}" names a habit that does not exist: ${spec.habitTitle}`)
+  }
+  if (!habitId && !spec.area) {
+    throw new Error(`Quest "${spec.title}" is loose but carries no area`)
+  }
+
+  await db.quest.create({
+    data: {
+      userId,
+      seasonId,
+      kind: spec.kind,
+      habitId,
+      subcategory: habitId ? null : (spec.area ?? null),
+      title: spec.title,
+      intent: spec.intent ?? null,
+      progress: spec.progress,
+      status: QuestStatus.ACTIVE,
+      sortOrder: index,
+    },
+  })
+}
+
+async function createQuests(
+  userId: string,
+  seasonId: string,
+  habitsByTitle: Map<string, string>
+): Promise<void> {
+  for (const [index, spec] of QUESTS.entries()) {
+    await createQuest(userId, seasonId, spec, habitsByTitle, index)
+  }
+}
+
+/** A quarter that has closed: written up and left alone. */
+async function createClosedSeason(
+  userId: string,
+  ref: QuarterRef,
+  spec: PastSeasonSpec
+): Promise<void> {
+  const season = await createSeason(userId, ref)
+
+  for (const [index, quest] of spec.quests.entries()) {
+    await db.quest.create({
+      data: {
+        userId,
+        seasonId: season.id,
+        kind: quest.kind,
+        subcategory: quest.area,
+        title: quest.title,
+        intent: quest.intent ?? null,
+        progress: quest.progress,
+        status: quest.progress >= 60 ? QuestStatus.COMPLETED : QuestStatus.ABANDONED,
+        sortOrder: index,
+      },
+    })
+  }
+
+  const hasReflection = Object.values(spec.reflection).some((value) =>
+    Array.isArray(value) ? value.length > 0 : Boolean(value)
+  )
+
+  if (!hasReflection) return
+
+  await db.seasonReflection.create({
+    data: {
+      seasonId: season.id,
+      wentWell: spec.reflection.wentWell ?? null,
+      wentBadly: spec.reflection.wentBadly ?? null,
+      learned: spec.reflection.learned ?? null,
+      carryForward: spec.reflection.carryForward ?? null,
+      completedAt: new Date(`${quarterEnd(ref)}T20:00:00.000Z`),
+      ratings: {
+        create: spec.reflection.ratings.map((rating) => ({
+          subcategory: rating.area,
+          score: rating.score,
+        })),
+      },
+    },
+  })
 }
 
 type Outcome = { id: string; status: TaskStatus; value: number | null; completedAt: Date | null }
@@ -260,13 +289,15 @@ async function main(): Promise<void> {
 
   const user = await db.user.create({ data: { name: 'Leo', timeZone } })
 
-  await createClosedSeason(user.id, shiftQuarter(thisQuarter, -1))
+  for (const spec of PAST_SEASONS) {
+    await createClosedSeason(user.id, shiftQuarter(thisQuarter, -spec.quartersBack), spec)
+  }
 
   const season = await createSeason(user.id, thisQuarter)
   const startsOn = fromDateColumn(season.startsOn)
 
-  await createQuests(user.id, season.id, startsOn)
-  await createLooseHabits(user.id, startsOn)
+  const habitsByTitle = await createHabits(user.id, startsOn)
+  await createQuests(user.id, season.id, habitsByTitle)
 
   const tasks = await materializeTasks(user.id, startsOn, shiftDays(today, 1))
   const past = await simulateHistory(user.id, today)
@@ -276,8 +307,10 @@ async function main(): Promise<void> {
   const entries = await writeJournal(user.id, startsOn, today)
 
   console.log(`Seeded ${season.name} — day ${daysBetween(startsOn, today) + 1} of the season`)
-  console.log(`  ${QUESTS.length} quests · ${tasks} tasks · ${past} of them in the past`)
-  console.log(`  ${entries} journal entries · previous quarter closed with a reflection`)
+  console.log(
+    `  ${QUESTS.length} quests · ${HABITS.length} habits · ${tasks} tasks · ${past} of them in the past`
+  )
+  console.log(`  ${entries} journal entries · ${PAST_SEASONS.length} past season(s)`)
   console.log(`  timezone ${timeZone}`)
 }
 

@@ -43,12 +43,21 @@ export function HabitGraph({ view }: { view: HabitsView }) {
   const [collapsed, setCollapsed] = useState(NOTHING_COLLAPSED)
   const [openId, setOpenId] = useState<string | null>(null)
   const [pendingArea, setPendingArea] = useState<Subcategory | null>(null)
+  const [pendingHabitId, setPendingHabitId] = useState<string | null>(null)
   const [pendingKind, setPendingKind] = useState<'habit' | 'quest' | null>(null)
   const [saving, startSaving] = useTransition()
 
   const graph = useMemo(
-    () => buildGraph({ habits: view.habits, quests: view.quests, collapsed, pendingArea, pendingKind }),
-    [view.habits, view.quests, collapsed, pendingArea, pendingKind]
+    () =>
+      buildGraph({
+        habits: view.habits,
+        quests: view.quests,
+        collapsed,
+        pendingArea,
+        pendingHabitId,
+        pendingKind,
+      }),
+    [view.habits, view.quests, collapsed, pendingArea, pendingHabitId, pendingKind]
   )
 
   const boxes = useMemo(() => sizeNodes(graph.nodes, openId, frame), [graph.nodes, openId, frame])
@@ -75,6 +84,7 @@ export function HabitGraph({ view }: { view: HabitsView }) {
   const toggle = useCallback((id: string) => {
     setOpenId(null)
     setPendingArea(null)
+    setPendingHabitId(null)
     setPendingKind(null)
     setCollapsed((folded) => {
       const next = new Set(folded)
@@ -86,12 +96,15 @@ export function HabitGraph({ view }: { view: HabitsView }) {
 
   const cancel = useCallback(() => {
     setPendingArea(null)
+    setPendingHabitId(null)
     setPendingKind(null)
   }, [])
 
   // Which `+` was pressed decides what gets written. The left one makes a
   // side quest and the right one a habit; before this they both made a
-  // habit, because `pendingKind` was set and then never read.
+  // habit, because `pendingKind` was set and then never read. A quest
+  // opened from a habit node carries that habit's id, so the quest is
+  // created already attached to the practice that will earn it.
   const save = useCallback(
     (area: Subcategory, title: string) => {
       if (title.trim().length === 0) {
@@ -99,14 +112,15 @@ export function HabitGraph({ view }: { view: HabitsView }) {
         return
       }
       const kind = pendingKind
+      const habitId = pendingHabitId
 
       startSaving(async () => {
-        if (kind === 'quest') await createSideQuest(area, title)
+        if (kind === 'quest') await createSideQuest(area, title, habitId ?? undefined)
         else await createHabit(area, title)
         cancel()
       })
     },
-    [cancel, pendingKind, startSaving]
+    [cancel, pendingHabitId, pendingKind, startSaving]
   )
 
   const close = useCallback(() => setOpenId(null), [])
@@ -162,6 +176,7 @@ export function HabitGraph({ view }: { view: HabitsView }) {
                   wasDragged,
                   setOpenId,
                   setPendingArea,
+                  setPendingHabitId,
                   setPendingKind,
                   cancel,
                   toggle,
@@ -215,6 +230,7 @@ type RenderOptions = {
   wasDragged: () => boolean
   setOpenId: (id: string | null) => void
   setPendingArea: (area: Subcategory | null) => void
+  setPendingHabitId: (habitId: string | null) => void
   setPendingKind: (kind: 'habit' | 'quest' | null) => void
   cancel: () => void
   toggle: (id: string) => void
@@ -266,6 +282,16 @@ function renderNode(options: RenderOptions) {
           options.setOpenId(node.id)
         }}
         onClose={() => options.setOpenId(null)}
+        onAddQuest={
+          !node.habit.archived
+            ? () => {
+                options.setOpenId(null)
+                options.setPendingArea(null)
+                options.setPendingHabitId(node.habit!.id)
+                options.setPendingKind('quest')
+              }
+            : null
+        }
       />
     )
   }
@@ -288,6 +314,7 @@ function renderNode(options: RenderOptions) {
           ? () => {
               options.setOpenId(null)
               options.setPendingArea(node.area as Subcategory)
+              options.setPendingHabitId(null)
               options.setPendingKind('habit')
             }
           : null
@@ -297,6 +324,7 @@ function renderNode(options: RenderOptions) {
           ? () => {
               options.setOpenId(null)
               options.setPendingArea(node.area as Subcategory)
+              options.setPendingHabitId(null)
               options.setPendingKind('quest')
             }
           : null

@@ -56,10 +56,11 @@ const METRICS: Record<GraphNodeKind, Metrics> = {
 
 /**
  * Area nodes carry a `+` at each end — habit on the right, side quest on
- * the left — and both have to fit inside the same box without crowding
- * the label. Counted twice: the second one arrived with side quests and
- * the allowance did not, so every area node was 18px narrower than the
- * physics had been told.
+ * the left — and habit nodes one of their own for the side quests they
+ * will serve. All of them have to fit inside the same box without
+ * crowding the label. Counted twice: the second area button arrived with
+ * side quests and the allowance did not, so every area node was 18px
+ * narrower than the physics had been told.
  */
 const ADD_BUTTON_WIDTH = 18
 const ADD_BUTTONS_PER_AREA = 2
@@ -68,7 +69,7 @@ export function boxFor(kind: GraphNodeKind, label: string): Box {
   const metrics = METRICS[kind]
   const chars = Math.max(Math.min(label.length, metrics.maxChars), metrics.minChars)
   const glyphs = chars * metrics.fontSize * (metrics.advance + metrics.tracking)
-  const extra = kind === 'area' ? ADD_BUTTON_WIDTH * ADD_BUTTONS_PER_AREA : 0
+  const extra = kind === 'area' ? ADD_BUTTON_WIDTH * ADD_BUTTONS_PER_AREA : kind === 'habit' ? ADD_BUTTON_WIDTH : 0
 
   return {
     halfWidth: (glyphs + metrics.paddingX * 2 + extra) / 2,

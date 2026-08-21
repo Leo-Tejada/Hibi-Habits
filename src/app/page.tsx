@@ -2,7 +2,6 @@ import { MainQuests } from '@/components/home/main-quests'
 import { SeasonPanel } from '@/components/home/season-panel'
 import { SideQuests } from '@/components/home/side-quests'
 import { SignalsPanel } from '@/components/home/signals-panel'
-import { StatisticsPanel } from '@/components/home/statistics-panel'
 import { TodayPanel } from '@/components/home/today-panel'
 import { TopBar } from '@/components/home/top-bar'
 import { homeView } from '@/server/queries/home'
@@ -27,7 +26,6 @@ export default async function HomePage(props: PageProps<'/'>) {
           <aside className="flex flex-col gap-4">
             <SignalsPanel signals={view.signals} />
             <TodayPanel today={view.todayTally} recent={view.recentTally} />
-            <StatisticsPanel areas={view.areaCompletion} />
           </aside>
         </div>
       </main>

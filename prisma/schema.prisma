@@ -1,12 +1,13 @@
 // Hibi Habits — data model.
 //
 // The pyramid, top to bottom:
-//   Category > Subcategory > Quest > Habit > Task
+//   Category > Subcategory > Habit > Quest > Task
 //
 // Category and Subcategory are the philosophy of the app and are never
-// editable, so they are not tables. Only `subcategory` is ever stored;
-// the category it belongs to is derived from it in `src/lib/taxonomy.ts`.
-// Storing both would let them drift apart, and they can't.
+// editable, so they are not tables. A habit carries the area it serves.
+// A quest attached to a habit belongs to that habit's area, so it stores
+// none; only a loose quest stores a `subcategory` of its own. Storing it
+// on both would let them drift apart, and they can't.
 
 generator client {
   provider = "prisma-client"
@@ -101,14 +102,19 @@ model Season {
   @@map("seasons")
 }
 
-/// What the season is for. Progress is self-rated: the user sets it,
-/// nothing derives it.
+/// What a season is for. A quest is served by a habit — the practice
+/// that earns it — or hangs loose when no single habit serves it.
+/// Progress is self-rated: the user sets it, nothing derives it.
 model Quest {
   id          String      @id @default(cuid())
   userId      String
   seasonId    String
+  /// The habit that serves this quest. Null means a loose quest.
+  habitId     String?
   kind        QuestKind
-  subcategory Subcategory
+  /// Only loose quests carry an area; an attached quest belongs to its
+  /// habit's area (see the note at the top of this file).
+  subcategory Subcategory?
   title       String
   intent      String?
   /// 0–100, set by hand. See `src/lib/quests/rules.ts`.
@@ -118,29 +124,30 @@ model Quest {
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   season Season  @relation(fields: [seasonId], references: [id], onDelete: Cascade)
-  habits Habit[]
-  tasks  Task[]
+  habit  Habit?  @relation(fields: [habitId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([seasonId, kind])
   @@index([userId, status])
+  @@index([habitId])
   @@map("quests")
 }
 
-/// A repeating practice. Owns a schedule, which is what makes a missed
-/// task detectable: without an expected day, nothing can be late.
+/// A repeating practice. A schedule makes a missed task detectable:
+/// without an expected day, nothing can be late. A habit without one
+/// wants no day at all — it exists as a practice and a suggestion.
 model Habit {
   id          String      @id @default(cuid())
   userId      String
-  /// Optional: a habit can outlive its quest, or never have had one.
-  questId     String?
   subcategory Subcategory
   title       String
 
   scheduleKind ScheduleKind
-  /// WEEKLY_DAYS only. 0 = Sunday through 6 = Saturday.
+  /// WEEKLY_DAYS only. 0 = Sunday through 6 = Saturday. Empty means the
+  /// habit wants no day: it never generates tasks, it only suggests
+  /// itself in the daily composer.
   weekdays     Int[]        @default([])
   /// EVERY_N_DAYS only. Counted from `anchorOn`.
   intervalDays Int?
@@ -162,27 +169,25 @@ model Habit {
 
   archivedAt DateTime?
 
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  quest Quest? @relation(fields: [questId], references: [id], onDelete: SetNull)
-  tasks Task[]
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quests Quest[]
+  tasks  Task[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, archivedAt])
-  @@index([questId])
   @@map("habits")
 }
 
 /// One thing to do on one day. The only level the user touches daily.
 ///
-/// A task can hang off a habit, straight off a quest, or off nothing at
-/// all — a stray errand that counts toward no statistic.
+/// A task hangs off a habit — the practice it serves — or off nothing at
+/// all: a stray errand that counts toward no statistic.
 model Task {
   id      String     @id @default(cuid())
   userId  String
   habitId String?
-  questId String?
   /// The part after the dot: "Push" in `Calisthenics.Push`. For a task
   /// with no habit this is the whole name. Empty means the habit's own
   /// name says everything.
@@ -212,7 +217,6 @@ model Task {
 
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   habit Habit? @relation(fields: [habitId], references: [id], onDelete: Cascade)
-  quest Quest? @relation(fields: [questId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -223,7 +227,6 @@ model Task {
   /// generator's job, not a constraint that forbids you writing things.
   @@index([habitId, dueOn])
   @@index([userId, dueOn])
-  @@index([questId])
   @@map("tasks")
 }
 

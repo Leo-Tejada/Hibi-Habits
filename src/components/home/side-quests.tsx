@@ -19,6 +19,9 @@ function SideQuestRow({ quest }: { quest: QuestCard }) {
       <div className="min-w-0">
         <div className="flex items-baseline gap-2.5">
           <h4 className="truncate text-[15px] leading-snug tracking-[-0.01em]">{quest.title}</h4>
+          {quest.habitTitle && (
+            <Eyebrow className="shrink-0 text-ink-faint">via {quest.habitTitle}</Eyebrow>
+          )}
           {questStatusLabel(quest.status) && (
             <Eyebrow className="shrink-0 text-ink-dim">{questStatusLabel(quest.status)}</Eyebrow>
           )}

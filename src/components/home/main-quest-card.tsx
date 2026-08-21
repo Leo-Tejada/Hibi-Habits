@@ -50,7 +50,7 @@ export function MainQuestCard({ quest }: { quest: QuestCard }) {
       </div>
 
       <footer className="mt-5 flex flex-wrap items-baseline justify-between gap-3 border-t border-line-soft pt-3">
-        <Reading label="Habits">{quest.habitCount}</Reading>
+        <Reading label="Habit">{quest.habitTitle ?? 'Loose'}</Reading>
         {/* Nothing was expected, so there is nothing to report. */}
         {quest.recentTotal > 0 && (
           <Reading label="Last 7 days">

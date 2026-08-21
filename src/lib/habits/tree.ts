@@ -56,6 +56,10 @@ export function isStructural(kind: GraphNodeKind): boolean {
  * derived from the first: when quests were inserted at depth 3 the link
  * distances grew an entry and the radii did not, which left every quest
  * and habit seeded 35px inside the ring its own spring wanted.
+ *
+ * The pyramid reads Category > Subcategory > Habit > Quest, and the last
+ * gap — habit to quest — is the shortest on purpose: a quest is an
+ * extension of its practice, not a neighbour of it.
  */
 const LINK_DISTANCE = [200, 135, 135, 100]
 const RING_RADIUS = LINK_DISTANCE.reduce<number[]>(
@@ -94,6 +98,8 @@ export type BuildOptions = {
   quests: QuestNodeView[]
   collapsed: ReadonlySet<string>
   pendingArea: Subcategory | null
+  /** Set while naming a side quest under the habit that will serve it. */
+  pendingHabitId: string | null
   pendingKind: 'habit' | 'quest' | null
 }
 
@@ -167,69 +173,73 @@ function addArea(
 
   if (options.collapsed.has(id)) return
 
-  const areaQuests = options.quests.filter((q) => q.subcategory === area)
-  // habits directly under area
-  const areaHabits = options.habits.filter((h) => h.subcategory === area && !h.questId)
-  
-  const pending = options.pendingArea === area
-  const totalItems = areaQuests.length + areaHabits.length + (pending ? 1 : 0)
-  
-  let currentPos = 0;
+  // Every habit of the area hangs directly off it, whether or not it
+  // serves a quest.
+  const areaHabits = options.habits.filter((habit) => habit.subcategory === area)
+  // Loose quests live beside the habits; a quest with a habit hangs off
+  // that habit instead (see addHabit).
+  const areaQuests = options.quests.filter(
+    (quest) => quest.habitId === null && quest.subcategory === area
+  )
+  const pending = options.pendingArea === area && options.pendingHabitId === null
+  const totalItems = areaHabits.length + areaQuests.length + (pending ? 1 : 0)
+
+  let currentPos = 0
 
   areaQuests.forEach((quest) => {
     const itemAngle = fanAngle(angle, currentPos++, totalItems, spreadOn(3))
-    addQuest(quest, id, itemAngle, options, nodes, links)
+    addQuest(quest, id, itemAngle, nodes, links, quest.subcategory!, 3)
   })
 
   areaHabits.forEach((habit) => {
     const itemAngle = fanAngle(angle, currentPos++, totalItems, spreadOn(3))
-    addHabit(habit, id, itemAngle, nodes, links, 3)
+    addHabit(habit, id, itemAngle, options, nodes, links)
   })
 
   if (pending) {
     const angleAt = fanAngle(angle, currentPos, totalItems, spreadOn(3))
 
-    addPending(area, id, angleAt, nodes, links, options.pendingKind ?? 'habit')
+    addPending(area, id, angleAt, nodes, links, options.pendingKind ?? 'habit', 3)
   }
 }
 
+/**
+ * A quest node: the goal its habit is earning, or — loose — a goal that
+ * stands on its own beside the habits of its area. Nothing hangs below a
+ * goal, so the quest carries no children of its own.
+ */
 function addQuest(
   quest: QuestNodeView,
   parentId: string,
   angle: number,
-  options: BuildOptions,
   nodes: GraphNode[],
-  links: Link[]
+  links: Link[],
+  area: Subcategory,
+  depth: number
 ): void {
   const id = questNodeId(quest.id)
+
   nodes.push({
     id,
     kind: 'quest',
     label: quest.title,
-    category: categoryOf(quest.subcategory),
-    area: quest.subcategory,
+    category: categoryOf(area),
+    area,
     habit: null,
     quest,
-    depth: 3,
+    depth,
     seedAngle: angle,
   })
-  links.push(linkTo(parentId, id, 2))
-
-  if (options.collapsed.has(id)) return
-
-  const questHabits = options.habits.filter((h) => h.questId === quest.id)
-  questHabits.forEach((habit, pos) => {
-    addHabit(habit, id, fanAngle(angle, pos, questHabits.length, spreadOn(4)), nodes, links, 4)
-  })
+  links.push(linkTo(parentId, id, depth - 1))
 }
 
 function addHabit(
   habit: HabitNodeView,
   parentId: string,
   angle: number,
+  options: BuildOptions,
   nodes: GraphNode[],
-  links: Link[],
-  depth: number
+  links: Link[]
 ): void {
   const id = habitNodeId(habit.id)
 
@@ -241,10 +251,34 @@ function addHabit(
     area: habit.subcategory,
     habit,
     quest: null,
-    depth,
+    depth: 3,
     seedAngle: angle,
   })
-  links.push(linkTo(parentId, id, depth - 1))
+  links.push(linkTo(parentId, id, 2))
+
+  // The quests this habit serves hang off it — the last rung of the
+  // pyramid — and take its area.
+  const quests = options.quests.filter((quest) => quest.habitId === habit.id)
+  const pending = options.pendingHabitId === habit.id && options.pendingKind === 'quest'
+  const totalItems = quests.length + (pending ? 1 : 0)
+
+  quests.forEach((quest, position) => {
+    addQuest(
+      quest,
+      id,
+      fanAngle(angle, position, totalItems, spreadOn(4)),
+      nodes,
+      links,
+      habit.subcategory,
+      4
+    )
+  })
+
+  if (pending) {
+    const angleAt = fanAngle(angle, quests.length, totalItems, spreadOn(4))
+
+    addPending(habit.subcategory, id, angleAt, nodes, links, 'quest', 4)
+  }
 }
 
 function addPending(
@@ -253,7 +287,8 @@ function addPending(
   angle: number,
   nodes: GraphNode[],
   links: Link[],
-  kind: 'habit' | 'quest'
+  kind: 'habit' | 'quest',
+  depth: number
 ): void {
   nodes.push({
     id: PENDING_ID,
@@ -263,8 +298,8 @@ function addPending(
     area,
     habit: null,
     quest: null,
-    depth: 3,
+    depth,
     seedAngle: angle,
   })
-  links.push(linkTo(parentId, PENDING_ID, 2))
+  links.push(linkTo(parentId, PENDING_ID, depth - 1))
 }

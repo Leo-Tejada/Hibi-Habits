@@ -25,6 +25,7 @@ export function HabitNode({
   seasonLabel,
   onOpen,
   onClose,
+  onAddQuest,
 }: {
   node: GraphNode
   habit: HabitNodeView
@@ -34,12 +35,13 @@ export function HabitNode({
   seasonLabel: string
   onOpen: () => void
   onClose: () => void
+  onAddQuest: (() => void) | null
 }) {
   const paint = habit.archived ? FADED : paintFor(tierOf(node), node.category)
 
   return (
     <div
-      className={`relative overflow-hidden border transition-[width,height,background-color,box-shadow] duration-300 ease-out ${
+      className={`group relative overflow-hidden border transition-[width,height,background-color,box-shadow] duration-300 ease-out ${
         open ? 'shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-12px_rgba(0,0,0,0.28)]' : ''
       } ${habit.archived ? 'opacity-60' : ''}`}
       style={{
@@ -62,6 +64,20 @@ export function HabitNode({
         >
           <span className="truncate">{habit.title}</span>
         </button>
+
+        {onAddQuest ? (
+          <button
+            type="button"
+            onClick={onAddQuest}
+            title={`New side quest served by ${habit.title}`}
+            style={{ color: paint.color }}
+            // Hover reveals it on a mouse, focus and touch always —
+            // the same rules the areas' `+` buttons play by.
+            className="absolute right-0.5 top-1/2 flex size-[18px] -translate-y-1/2 items-center justify-center font-mono text-[13px] leading-none opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100"
+          >
+            +<span className="sr-only">New side quest served by {habit.title}</span>
+          </button>
+        ) : null}
       </Layer>
 
       <Layer shown={open} delayed>

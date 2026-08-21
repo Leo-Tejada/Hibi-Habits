@@ -31,19 +31,19 @@ Each three months, a new **season** starts. The cycle is the following:
 1. Start of the season
 2. Setting **main quests** for the upcoming 3 months
 3. Setting *side quests* (optional) for the same 3 months
-4. Add tasks linked to either **main** or *side* quests
+4. Add tasks linked to your **habits** — the practices that serve **main** and *side* quests
 5. Keep living while updating my status constantly
 6. End of the season, the user completes a ceremonial form of self-reflection
 
 The web-app is heavy on statistics and tracking as a whole. That is why there is a subjacent hierarchy in each of the logged actions:
-3 Categories *Health* -> 3 Subcategories *Body* -> **Main**/*Side* Quests *Learn Handstand* -> Habit *Calisthenics (Push day)* -> Task *Do `Calisthenics.Push` today*
+3 Categories *Health* -> 3 Subcategories *Body* -> Habit *Calisthenics (Push day)* -> **Main**/*Side* Quest *Learn Handstand* -> Task *Do `Calisthenics.Push` today*
 
 I will re-write it in another way so it is understood better. The user can change almost any of the parameters in that last example. For instance, they can modify one of their **habits** anytime they want. Or set new **main quests** at the start of each **season**. But, most probably they will be only interacting with the **tasks**. In other words, it is a pyramidal structure:
 From the hierarchical POV:
 - Category
 - Subcategory
-- Quest
 - Habit
+- Quest
 - Task
 
 From the user's POV:

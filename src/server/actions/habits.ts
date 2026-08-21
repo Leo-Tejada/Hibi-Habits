@@ -58,25 +58,49 @@ export async function createHabit(area: string, title: string): Promise<void> {
  * until you have visited some other screen — punishes you for the order
  * you happened to do things in.
  *
+ * With `habitId` the quest is hung off the habit that serves it and
+ * takes that habit's area; without one it is a loose quest and `area`
+ * decides where it lives.
+ *
  * Only SIDE quests are made here. A main quest is one of the three
  * anchors of a season and is set deliberately at the start of one, which
  * is a different act with a different rule attached — see
  * `canAddMainQuest` in `src/lib/quests/rules.ts`.
  */
-export async function createSideQuest(area: string, title: string): Promise<void> {
-  const subcategory = asSubcategory(area)
+export async function createSideQuest(
+  area: string,
+  title: string,
+  habitId?: string
+): Promise<void> {
   const name = title.trim().slice(0, MAX_TITLE)
 
-  if (!subcategory || name.length === 0) return
+  if (name.length === 0) return
 
   const user = await currentUser()
   const season = await openSeason(user.id, user.timeZone)
+
+  let servingHabitId: string | null = null
+  let subcategory: Subcategory | null = null
+
+  if (habitId) {
+    const habit = await db.habit.findFirst({
+      where: { id: habitId, userId: user.id },
+      select: { id: true },
+    })
+
+    if (!habit) return
+    servingHabitId = habit.id
+  } else {
+    subcategory = asSubcategory(area)
+    if (!subcategory) return
+  }
 
   await db.quest.create({
     data: {
       userId: user.id,
       seasonId: season.id,
       kind: QuestKind.SIDE,
+      habitId: servingHabitId,
       subcategory,
       title: name,
     },

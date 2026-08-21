@@ -8,8 +8,7 @@ import { db } from '../db'
 
 /**
  * Everything the habits graph needs, which is not much: the graph draws
- * structure, not statistics. How a season has actually gone is counted
- * in `completion.ts` and shown on the homepage instead.
+ * structure, not statistics.
  *
  * Archived habits are included. They render faded, so the shape of a
  * life you used to lead stays visible.
@@ -30,14 +29,14 @@ export async function habitsView(): Promise<HabitsView> {
 
   const habits = await db.habit.findMany({
     where: { userId: user.id },
-    select: { id: true, title: true, subcategory: true, questId: true, archivedAt: true },
+    select: { id: true, title: true, subcategory: true, archivedAt: true },
     orderBy: [{ subcategory: 'asc' }, { title: 'asc' }],
   })
 
   const quests = season
     ? await db.quest.findMany({
         where: { userId: user.id, seasonId: season.id },
-        select: { id: true, title: true, subcategory: true, kind: true },
+        select: { id: true, title: true, subcategory: true, habitId: true, kind: true },
         orderBy: [{ sortOrder: 'asc' }],
       })
     : []
@@ -49,13 +48,13 @@ export async function habitsView(): Promise<HabitsView> {
       id: habit.id,
       title: habit.title,
       subcategory: habit.subcategory,
-      questId: habit.questId,
       archived: habit.archivedAt !== null,
     })),
     quests: quests.map((quest) => ({
       id: quest.id,
       title: quest.title,
       subcategory: quest.subcategory,
+      habitId: quest.habitId,
       kind: quest.kind,
     })),
   }

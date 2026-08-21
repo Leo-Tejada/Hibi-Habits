@@ -8,32 +8,38 @@ type Recent = { done: number; total: number }
 
 const NO_RECENT: Recent = { done: 0, total: 0 }
 
-/** Finished-versus-expected per quest over a window, in one query. */
-async function recentByQuest(
-  questIds: string[],
+/**
+ * Finished-versus-expected per habit over a window, in one query. A
+ * quest's recent figures are its serving habit's: the practice earns the
+ * goal, so the numbers are the practice's. Loose quests have none.
+ */
+async function recentByHabit(
+  habitIds: string[],
   from: DayKey,
   to: DayKey
 ): Promise<Map<string, Recent>> {
+  if (habitIds.length === 0) return new Map()
+
   const rows = await db.task.groupBy({
-    by: ['questId', 'status'],
+    by: ['habitId', 'status'],
     where: {
-      questId: { in: questIds },
+      habitId: { in: habitIds },
       dueOn: { gte: toDateColumn(from), lte: toDateColumn(to) },
     },
     _count: { _all: true },
   })
-  const byQuest = new Map<string, Recent>()
+  const byHabit = new Map<string, Recent>()
 
   for (const row of rows) {
-    if (!row.questId) continue
+    if (!row.habitId) continue
 
-    const entry = byQuest.get(row.questId) ?? { ...NO_RECENT }
+    const entry = byHabit.get(row.habitId) ?? { ...NO_RECENT }
 
     entry.total += row._count._all
     if (row.status === TaskStatus.DONE) entry.done += row._count._all
-    byQuest.set(row.questId, entry)
+    byHabit.set(row.habitId, entry)
   }
-  return byQuest
+  return byHabit
 }
 
 /**
@@ -51,26 +57,28 @@ export async function seasonQuests(
   const quests = await db.quest.findMany({
     where: { seasonId },
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-    include: { _count: { select: { habits: true } } },
+    include: { habit: { select: { title: true, subcategory: true } } },
   })
-  const recent = await recentByQuest(
-    quests.map((quest) => quest.id),
-    from,
-    to
-  )
+  const serving = quests
+    .map((quest) => quest.habitId)
+    .filter((habitId): habitId is string => habitId !== null)
+  const recent = await recentByHabit(serving, from, to)
   const cards = quests.map((quest): QuestCard & { kind: QuestKind } => {
-    const window = recent.get(quest.id) ?? NO_RECENT
+    // An attached quest belongs to its habit's area, a loose one to its
+    // own — both cannot be set, so one of the two is always here.
+    const area = quest.habit?.subcategory ?? quest.subcategory!
+    const window = quest.habitId ? (recent.get(quest.habitId) ?? NO_RECENT) : NO_RECENT
 
     return {
       id: quest.id,
       kind: quest.kind,
-      category: categoryOf(quest.subcategory),
-      area: quest.subcategory,
+      category: categoryOf(area),
+      area,
       title: quest.title,
       intent: quest.intent,
       progress: quest.progress,
       status: quest.status,
-      habitCount: quest._count.habits,
+      habitTitle: quest.habit?.title ?? null,
       recentDone: window.done,
       recentTotal: window.total,
     }

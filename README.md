@@ -1,7 +1,7 @@
 # Hibi Habits
 
-日々 — day after day. A habit tracker built around seasons: one calendar
-quarter of living, anchored by a small number of quests you set at the start
+Habit tracker built around seasons: one calendar quarter of living,
+anchored by a small number of quests you set at the start
 and mostly leave alone.
 
 ## The pyramid
@@ -11,19 +11,22 @@ Everything logged belongs somewhere in one structure:
 ```
 Category      Health · Relationships · Independence
 Subcategory   Mind Body Spirit · Love Family Friends · Work Growth Money
-Quest         one MAIN per category per season, plus any number of SIDE
-Habit         a repeating practice, carrying a schedule
+Habit         a repeating practice; a schedule makes it generate tasks
+Quest         one MAIN per category per season, plus any SIDE — a goal
+              the habit above it serves, or a loose one on its own
 Task          one thing, on one day
 ```
 
 You touch it from the bottom: tasks daily, habits now and then, quests once a
 season. Categories and subcategories are never editable — they are the
-philosophy, so they live in `src/lib/taxonomy.ts` rather than in a table. Only
-`subcategory` is ever stored; its category is always derived, so the two cannot
-drift apart.
+philosophy, so they live in `src/lib/taxonomy.ts` rather than in a table. A
+habit carries the area it serves; a quest attached to a habit takes that
+habit's area, so only a loose quest stores a `subcategory`. The category is
+always derived, so the two cannot drift apart.
 
-The pyramid is a shape, not a cage. A task can hang off a habit, straight off a
-quest, or off nothing at all.
+The pyramid is a shape, not a cage. A task hangs off a habit, or off nothing at
+all. A quest hangs off the habit that serves it, or stands loose when no single
+practice earns it.
 
 ## Seasons are calendar quarters
 
@@ -42,7 +45,7 @@ raises a signal when a season has closed without a reflection.
 ```bash
 npm install             # postinstall generates the Prisma client
 npm run db:migrate      # apply migrations
-npm run db:seed         # two seasons, one live and one closed, ~300 tasks
+npm run db:seed         # a live season written from real life, ~270 tasks
 npm run dev
 ```
 
@@ -69,7 +72,9 @@ instances can come and go freely.
 
 Both work with Prisma 7 and `@prisma/adapter-pg`, interactive transactions
 included. Migrations need session mode, which is why local development stays on
-5432.
+5432. Pointed at the pooler, `prisma migrate dev` never returns — it sits
+waiting on a shadow database it cannot create. The manual path around that is
+written up in TODO.md under "Environment traps".
 
 `src/server/db.ts` also caps each instance at a single connection — override
 with `DATABASE_POOL_MAX`. The ceiling is (instances × pool size), so on session
@@ -85,7 +90,7 @@ Other scripts: `npm run typecheck`, `npm run lint`, `npm run build`,
 ```
 prisma/
   schema.prisma            the data model, commented
-  seed.ts, seed-content.ts a live season, and one already closed
+  seed.ts, seed-content.ts the live season; past seasons are one list entry each
 
 src/
   lib/                     pure logic, no database, no React
@@ -177,6 +182,9 @@ habit exists, so `Dr. Smith 10:00` and `etc.` stay ordinary prose.
   you dragged them, keeping their neighbours.
 - **Rotation**: a habit cycles through names across its occurrences, so one
   `Calisthenics` on Mondays and Thursdays produces Push, then Pull.
+- **Suggestions**: while a day is being written, habit names complete as you
+  type. A habit with no schedule generates no tasks at all — it lives as a
+  suggestion, a practice you keep by hand.
 - **Removing**: deleting the line is the only way. Ticking never removes
   anything, and a generated line can only be removed by changing its habit.
 
@@ -185,12 +193,8 @@ habit exists, so `Dr. Smith 10:00` and `etc.` stay ordinary prose.
 Three of the five screens: journal and mood, quests, habits and training. The
 schema already covers them, including the end-of-season reflection.
 
-Season task totals — completed against uncompleted for a whole season,
-filterable by whether a task was linked — belong in the reserved Statistics
-square on the homepage.
+The Statistics panel was removed in the hierarchy rebuild — per-area tallies
+stopped earning their place beside the quests and signals.
 
 The calendar squares are blank on purpose — they are held for the hours logged
 at the office, which will arrive from the NFC reader.
-
-Tasks are materialised up to today only; the daily screen will want to run
-`materializeTasks` forward as well.
