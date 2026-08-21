@@ -155,11 +155,5 @@ function shift(a: Body, b: Body, dx: number, dy: number): void {
 
 /** Keep everything inside the frame, so nothing wanders off to be lost. */
 export function containBodies(bodies: Body[], halfWidth: number, halfHeight: number): void {
-  for (const body of bodies) {
-    const limitX = Math.max(0, halfWidth - body.halfWidth)
-    const limitY = Math.max(0, halfHeight - body.halfHeight)
-
-    body.x = Math.min(limitX, Math.max(-limitX, body.x))
-    body.y = Math.min(limitY, Math.max(-limitY, body.y))
-  }
+  // Disabled to allow the graph to expand beyond the window.
 }

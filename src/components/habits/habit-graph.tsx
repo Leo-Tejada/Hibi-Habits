@@ -114,7 +114,8 @@ export function HabitGraph({ view }: { view: HabitsView }) {
 
   return (
     <div ref={containerRef} className="absolute inset-0 overflow-hidden" onPointerDown={handleBackgroundPointerDown}>
-      <GraphEdges links={graph.links} />
+      <div data-layer="graph" className="absolute inset-0 origin-center">
+        <GraphEdges links={graph.links} />
 
       {frame
         ? graph.nodes.map((node) => {
@@ -150,6 +151,7 @@ export function HabitGraph({ view }: { view: HabitsView }) {
             )
           })
         : null}
+      </div>
     </div>
   )
 }

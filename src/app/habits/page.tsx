@@ -9,10 +9,12 @@ export default async function HabitsPage() {
   return (
     // The graph fills whatever is left under the bar and never scrolls:
     // it is a space you move around in, not a document you read down.
-    <div className="flex h-dvh flex-col overflow-hidden">
-      <TopBar today={view.today} nav={seasonNavFor(undefined, view.today)} current="/habits" />
+    <div className="relative h-dvh w-full overflow-hidden">
+      <div className="absolute inset-x-0 top-0 z-20">
+        <TopBar today={view.today} nav={seasonNavFor(undefined, view.today)} current="/habits" />
+      </div>
 
-      <main className="relative flex-1">
+      <main className="absolute inset-0">
         <GraphShell view={view} />
       </main>
     </div>

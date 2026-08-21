@@ -119,7 +119,11 @@ function reconcile(simulation: Simulation, nodes: GraphNode[], boxes: Map<string
  * transform, so the component renders the graph's *shape* and this
  * paints its *positions*.
  */
-function paint(container: HTMLElement, simulation: Simulation): void {
+function paint(container: HTMLElement, simulation: Simulation, transform: {x: number, y: number, scale: number} = {x:0, y:0, scale:1}): void {
+  const layer = container.querySelector('[data-layer="graph"]') as HTMLElement;
+  if (layer) {
+    layer.style.transform = `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`;
+  }
   const { halfWidth, halfHeight } = simulation.frame
 
   for (const element of container.querySelectorAll<HTMLElement>('[data-body]')) {
@@ -163,11 +167,79 @@ export function useGraphLayout(options: LayoutOptions): Layout {
   const simulationRef = useRef<Simulation | null>(null)
   const runRef = useRef<() => void>(() => {})
   const draggedRef = useRef(false)
+  const transformRef = useRef({ x: 0, y: 0, scale: 1 })
 
   // Layout, not effect: positions must be on the elements before the
   // browser paints, or every restructure shows one frame of every node
   // stacked at the centre. Nothing here runs on the server — the graph is
   // loaded client-side only.
+  
+  useLayoutEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const t = transformRef.current;
+      const zoomSensitivity = 0.001;
+      const delta = -e.deltaY * zoomSensitivity;
+      const newScale = Math.min(Math.max(0.1, t.scale * Math.exp(delta)), 5);
+      
+      const rect = container.getBoundingClientRect();
+      const cx = e.clientX - rect.left - rect.width / 2;
+      const cy = e.clientY - rect.top - rect.height / 2;
+
+      // Adjust x and y to zoom towards the mouse cursor
+      t.x = cx - (cx - t.x) * (newScale / t.scale);
+      t.y = cy - (cy - t.y) * (newScale / t.scale);
+      t.scale = newScale;
+      
+      if (simulationRef.current) {
+        paint(container, simulationRef.current, t);
+      }
+    };
+
+    const handlePointerDown = (e: globalThis.PointerEvent) => {
+      if ((e.target as Element).closest('[data-body]')) return; // handled by node startDrag
+      
+      let startX = e.clientX;
+      let startY = e.clientY;
+      const t = transformRef.current;
+      draggedRef.current = false;
+      
+      const onMove = (me: globalThis.PointerEvent) => {
+        const dx = me.clientX - startX;
+        const dy = me.clientY - startY;
+        if (Math.hypot(dx, dy) > DRAG_THRESHOLD) {
+          draggedRef.current = true;
+        }
+        t.x += dx;
+        t.y += dy;
+        startX = me.clientX;
+        startY = me.clientY;
+        if (simulationRef.current) {
+          paint(container, simulationRef.current, t);
+        }
+      };
+
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+      };
+
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    container.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      container.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [containerRef]);
+
   useLayoutEffect(() => {
     const container = containerRef.current
 
@@ -186,7 +258,7 @@ export function useGraphLayout(options: LayoutOptions): Layout {
     let raf = 0
     const tick = () => {
       step(simulation)
-      paint(container, simulation)
+      paint(container, simulation, transformRef.current)
       raf = isCool(simulation) ? 0 : requestAnimationFrame(tick)
     }
 
@@ -201,7 +273,7 @@ export function useGraphLayout(options: LayoutOptions): Layout {
     // if (!warm) settle(simulation, WARM_UP_TICKS)
     if (still) settle(simulation, SETTLE_TICKS)
 
-    paint(container, simulation)
+    paint(container, simulation, transformRef.current)
     if (!still) runRef.current()
 
     return () => {
@@ -221,8 +293,8 @@ export function useGraphLayout(options: LayoutOptions): Layout {
       if (!body) return
 
       const rect = container.getBoundingClientRect()
-      const toLocalX = (clientX: number) => clientX - rect.left - simulation.frame.halfWidth
-      const toLocalY = (clientY: number) => clientY - rect.top - simulation.frame.halfHeight
+      const toLocalX = (clientX: number) => ((clientX - rect.left - simulation.frame.halfWidth) - transformRef.current.x) / transformRef.current.scale
+      const toLocalY = (clientY: number) => ((clientY - rect.top - simulation.frame.halfHeight) - transformRef.current.y) / transformRef.current.scale
       const grabX = body.x - toLocalX(event.clientX)
       const grabY = body.y - toLocalY(event.clientY)
       const from = { x: event.clientX, y: event.clientY }
