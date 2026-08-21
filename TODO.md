@@ -1,96 +1,175 @@
-# Handoff — Habits graph
+# TODO — Habits graph
 
-Written at `ac07a11`. Tree was clean.
+Written after the physics pass. Tree was clean at the commit that carries this.
 
-## What is mine and what is not
+## Where things stand
 
-I built the habits graph in `90ee850` (`src/lib/graph/*`, `src/components/habits/*`,
-`src/server/queries/{habits,completion}.ts`, `src/server/actions/habits.ts`,
-`src/lib/habits/*`, the homepage Statistics panel).
+The habits graph works: the whole tree renders, collapses, expands, drags and
+snaps back; habits and side quests can be created from the `+` on an area node.
+The physics was measured rather than guessed at this time round, and the
+constants in `src/lib/graph/simulation.ts` are hand-tuned by the user on top of
+that.
 
-**I have never seen `212c1fa` or `ac07a11`, nor `quest-node.tsx`.** Zoom/pan, the
-floating navbar, and quest support arrived after me and I have not reviewed them.
-Read those before trusting anything below about physics or layout — several of my
-constants were touched by `patch_forces.js` / `patch_layout_zoom.js`.
+## What was fixed, and how it was verified
 
-Also: `.claude/skills/graph-skills/` and `skills-lock.json` were committed in
-`90ee850`. Those came from the user's own `npx skills add`, not from the feature.
-Worth asking whether they belong in the repo.
+The complaint was "too permissive — if I overthrow a subcategory, it stays away
+and doesn't snap back". It had six independent causes:
 
-## Decisions the user already made — do not re-ask
+1. **Nothing remembered the intended arrangement.** A force layout has many
+   stable arrangements and settles into whichever it was last pushed toward, so
+   a throw relocated the branch permanently. There is now a fourth force,
+   `applyHoming`: every body keeps the seed position `buildGraph` computes for
+   it and is drawn weakly back to it. This is what makes "layout is the same
+   every visit, dragging is temporary" true rather than aspirational.
+2. Repulsion beat the springs, so every edge rested ~25% long and mushy.
+3. The release was *colder* than the drag (0.22 against 0.5), so the graph went
+   cold while the branch was still crawling home.
+4. `RING_RADIUS` was never updated when quests were inserted at depth 3, so
+   everything below was seeded 35px inside the ring its own spring wanted. It is
+   derived from `LINK_DISTANCE` now instead of written out twice.
+5. The repulsion range cutoff floored the distance *before* comparing it, so any
+   node bigger than the range — i.e. an opened card — was invisible to
+   repulsion, exactly backwards.
+6. Sibling spacing was an angle, so the crowded outer ring got *less* room than
+   the inner one. It is an arc in pixels now, converted per ring.
 
-- Quests were originally **left out** of the graph; the user reversed this in the
-  final message and now wants main and side quests under their subcategory.
-- **Habits cannot hold children.** They reversed an earlier answer to get here:
-  "It is easier that way and I force myself to not make anything a habit."
+Measured on the real tree, throwing four different nodes 755px and releasing:
+
+| | before | after |
+| --- | --- | --- |
+| residual from home | 201 / 478 / 297 / 285 px | 89 / 156 / 55 / 10 px |
+| mean edge error | 33.7px | 31.5px |
+| overlapping pairs | 0 | 0 |
+
+Confirmed in the browser too: a node thrown 645px returns fully, and the rest of
+the graph returns to its settled arrangement exactly.
+
+## Read this before touching the constants
+
+`COLLISION_PADDING` is not like the others. `resolveCollisions` writes positions
+**directly and ignores alpha**, by design — overlap is a state that must not
+persist, not a force to be balanced. So it is the one thing that never cools,
+and at high values it permanently fights the springs and the homing force on a
+graph whose edges rest at 100–200px.
+
+Measured, holding every other constant at its current value:
+
+| `COLLISION_PADDING` | residuals after a throw | mean edge error |
+| --- | --- | --- |
+| 28 | 1 / 87 / 3 / 1 px | 23.0px |
+| 44 | 8 / 81 / 7 / 2 px | 24.8px |
+| **55 (current)** | **89 / 156 / 55 / 10 px** | **31.5px** |
+| 70 | 229 / 127 / 71 / 19 px | 46.8px |
+
+55 is a deliberate compromise the user chose knowing this: more air between
+nodes, at the cost of a throw not landing perfectly. **Do not "fix" it down
+without asking.** If more space is wanted, `REPULSION` and the `LINK_DISTANCE`
+rest lengths buy it without the side effect.
+
+`FRICTION` is at 0.5, the bottom of the range that was on offer during tuning —
+the graph may want to be thicker still, so that is worth offering.
+
+## Open questions for the user
+
+- Do habits nest under their quest, or sit as siblings of quests under the area?
+  Currently a habit with a `questId` nests under the quest and one without sits
+  under the area. That is what the code does; nobody confirmed it is wanted.
+- Does clicking a quest open the same blank card a habit does, or one with
+  `QuestProgress`? Quest nodes are not clickable at all right now.
+- `.claude/skills/graph-skills/` and `skills-lock.json` were committed in
+  `90ee850` from the user's own `npx skills add`, not from the feature. They are
+  the only source of the 14 remaining lint errors — `src/` itself is clean.
+  Should they be in the repo?
+
+## Decisions already made — do not re-ask
+
+- Quests appear on the graph, main and side, under their subcategory.
+- **Main quests are bold, side quests are italic**, and each takes its own step
+  on the fill ladder: `area 45 → questMain 39 → questSide 31 → habit 24` percent
+  of the category hue. No dashed borders on quests — dashes mean "provisional"
+  and belong to the pending node and collapsed branches only.
+- **Habits cannot hold children.** "It is easier that way and I force myself to
+  not make anything a habit."
 - Habits attach to **subcategories only**, never to a category.
-- Creating a habit asks for **a name only**. It is born `WEEKLY_DAYS` with an empty
-  `weekdays` array, which wants no day at all, so it writes nothing into `/daily`
-  until scheduled. Verified: 0 tasks generated. Do not change this without asking.
-- Clicking a habit **morphs it in place** into a blank card; the graph pushes aside.
-  The card stays blank on purpose — it is the shell Journal and Quests will share.
+- Creating a habit asks for **a name only**. Born `WEEKLY_DAYS` with empty
+  `weekdays`, which wants no day, so it writes nothing into `/daily` until
+  scheduled. Verified: 0 tasks generated.
+- Creating a side quest **opens the season silently** if the quarter has none —
+  `upsert`, so two quests named at once cannot race into two seasons.
+- Clicking a habit **morphs it in place** into a blank card; the graph pushes
+  aside. The card stays blank on purpose — it is the shell Journal and Quests
+  will share.
 - Layout is the **same every visit**; dragging is temporary.
 - Structural nodes **collapse and expand**, and the rest must redistribute.
 - Desktop first; phone only needs to be legible.
-- All nodes are **sharp-cornered and solid-filled** with their category hue, stepped
-  by depth (category 100% / area 45% / habit 24%, mixed toward `--panel`). Mono vs
-  Helvetica is the *only* thing separating structural nodes from habits.
+- All nodes are **sharp-cornered and solid-filled** with their category hue.
+  Hue means category and nothing else; depth is carried by fill strength. Mono
+  vs Helvetica is the only thing separating structural nodes from habits.
 - **`You` is the one unfilled node** — it belongs to all three categories.
 - Season completion is shown per area on the **homepage**, not on the graph.
 
-## Outstanding, from the user's last message
+## How to verify this area
 
-1. **Physics too permissive.** "If I overthrow a subcategory, it stays away and
-   doesn't snap back." I had just halved `REPULSION`/`SPRING` and set release alpha
-   to 0.22, which overshot into mush. They want it snappier — but the round before,
-   they said the old values snapped too harshly, so it is between the two.
-   They explicitly invited **dev-only sliders** to tune it live. That is probably the
-   right answer; I kept guessing at a taste parameter.
-   Note `patch_forces.js` and `patch_layout_zoom.js` already changed this area.
-2. **A second `+` on the left of each area node** that creates a *side quest*
-   (existing right-hand `+` creates a habit).
-3. **Main quests must appear** under their subcategory too.
+Numerically, not by eye. A throwaway `.mts` file at the repo root, run with
+`npx tsx --env-file=./.env --tsconfig ./tsconfig.json ./probe.mts`, can import
+`@/lib/graph/*`, `@/lib/habits/tree` and `@/server/db` and step the simulation
+with no browser at all. Build the graph, settle it, record every position, then
+throw a node and compare. Three ways that harness lies, each of which produced a
+confident wrong answer:
 
-## Open questions I was about to ask when the session ended
+- **Forgetting `sim.links`.** `createSimulation` starts with none, so you
+  measure a graph with no springs and get edges "resting" at 3× their target.
+- **Teleporting the node instead of dragging it.** Pin it, move it a little each
+  frame with the graph held at `DRAG_ALPHA`, then release. Teleporting leaves
+  the neighbours undisturbed and understates the residual — 33px against a real
+  232px.
+- **A toy fixture.** Nine nodes come home at almost any setting; only the real
+  tree from the database shows the difference.
 
-- Do habits nest under their quest (`Habit.questId` exists), or sit as siblings of
-  quests under the area?
-- How are main quest / side quest / habit told apart visually, now that shape and
-  colour are both spoken for?
-- A `Quest` row needs a `Season` row, and a quarter has none until something creates
-  one. Should the side-quest `+` open the season silently, or be disabled?
-- Does clicking a quest open the same blank card, or one with `QuestProgress`?
+A panel of sliders over `physicsConfig` was built for tuning this by feel, used,
+and then deleted before committing — so it is *not* in the history and there is
+nothing to revert to. Rebuilding it is cheap and worth it before any further
+tuning: `physicsConfig` is a single plain object that `step()` re-reads every
+tick, so a `<input type="range">` per key that writes straight into it takes
+effect on the next frame with no rebuild and no React state involved. Gate it on
+`process.env.NODE_ENV === 'development'` and give it a way to reheat the
+simulation, or the graph will be cold when the slider moves.
 
-## Known bugs
+## Environment traps
 
-- `today-panel.tsx:24` calls `<Meter value={...} />` with **no `tone`**, so it falls
-  back to `var(--activity)` — a variable defined nowhere in `globals.css`. That bar
-  renders with no fill on the homepage right now. I said I would fix it and did not.
-- `loading.tsx` shows the homepage's panel skeleton on `/habits`, which looks wrong
-  during a cold compile.
-- The `+` affordance is hover-only, so it is unreachable by touch.
+- **The browser tab must have focus.** Not merely be visible —
+  `document.hasFocus()`. Without it `/habits` sits on its loading fallback
+  forever: the `next/dynamic` `ssr: false` chunk never resolves, `HabitGraph`
+  never mounts, and the page shows an empty field with **no console error and a
+  clean 200 in the server log**. An earlier session recorded this as "the dev
+  server wedges" and prescribed `pkill && rm -rf .next` — that is wrong and cost
+  hours twice. Click the page, then wait ~8s.
+- **`requestAnimationFrame` is throttled in an unfocused tab**, so no animation
+  is observable. CSS transitions do not advance either, so
+  `getBoundingClientRect` reads the *pre-transition* size while the inline style
+  already holds the new one. Read `element.style.width` to see what React set.
+- **A synthetic `.click()` is not a click.** It fires no `pointerdown`, so
+  `startDrag` never resets `draggedRef`, and a stale `true` from an earlier
+  gesture swallows it. Dispatch `pointerdown` + `pointerup` + `click`.
 
-## Environment traps that cost me hours
+## Still to build
 
-- **The Chrome tab reports `visibility: hidden` and `framesIn1s: 0`.** `requestAnimationFrame`
-  never fires, so no animation is observable — no drag motion, no settle, no morph
-  transition. The initial layout still paints because `useLayoutEffect` runs
-  `settle()` + `paint()` synchronously. Test animation-independent behaviour instead:
-  e.g. a drag must swallow the click that follows it, a plain press must not.
-- **The dev server wedges** after many edits: React never hydrates, page content sits
-  in a `DIV[hidden]`, every chunk loads fine, no console errors, and `npm run build`
-  passes. `pkill -f "next dev" && rm -rf .next` then restart. Do not go looking for a
-  bug in the code — I did, twice.
-- Verify layout numerically, not by eye. Measuring edge lengths against their spring
-  rest length is what caught the tangle: ring-2 edges were resting at 244–348px
-  against a 135px target, which meant repulsion had beaten the springs outright.
+- **Main quests cannot be created from the graph** — only side quests. The
+  one-main-per-category rule in `canAddMainQuest` has no interface yet, and
+  setting the three anchors is the ceremony that opens a season, so it probably
+  wants its own screen rather than a `+` on an area node.
+- Journal and Quests screens are unbuilt. The user is "not satisfied nor done"
+  with the homepage.
+- Season task totals — completed against uncompleted for a whole season,
+  filterable by whether a task was linked — belong in the reserved Statistics
+  square on the homepage.
+- Tasks are materialised up to today only; the daily screen will want to run
+  `materializeTasks` forward as well.
+- Drag-to-reorder on the daily card has never been confirmed with real input.
 
 ## Older, still open
 
-- **Rotate the Supabase password.** It appeared in a chat transcript in an earlier
-  session and must be treated as compromised. Rotation has never been confirmed.
-  Supabase → Settings → Database, then update local `.env` and Vercel's
-  `DATABASE_URL`, keeping port `6543`, then redeploy.
-- Journal and Quests screens are unbuilt. The user is "not satisfied nor done" with
-  the homepage.
-- Drag-to-reorder on the daily card has never been confirmed with real input.
+- **Rotate the Supabase password.** It appeared in a chat transcript in an
+  earlier session and must be treated as compromised. Rotation has never been
+  confirmed. Supabase → Settings → Database, then update local `.env` and
+  Vercel's `DATABASE_URL`, keeping port `6543`, then redeploy.

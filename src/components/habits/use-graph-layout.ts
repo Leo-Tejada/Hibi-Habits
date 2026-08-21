@@ -14,6 +14,7 @@ import { polarPoint } from '@/lib/graph/seed'
 import {
   createSimulation,
   isCool,
+  physicsConfig,
   reheat,
   setAlpha,
   settle,
@@ -37,25 +38,16 @@ const SETTLE_TICKS = 1200
 const DRAG_THRESHOLD = 4
 
 /**
- * How hot the graph runs while a node is being dragged — warm enough
- * that its neighbours get out of the way as you move it.
- */
-const DRAG_ALPHA = 0.5
-
-/**
- * And how hot it runs once you let go. Much cooler, so the node drifts
- * back to its place over a second or so rather than snapping to it. Low
- * enough to be gentle, high enough that it still arrives before the
- * graph cools to a standstill.
- */
-const RELEASE_ALPHA = 0.22
-
-/**
  * Watch the container and report its half-extents.
  *
- * The initial size arrives through the observer's own first callback
- * rather than being read during the effect, which keeps state out of the
- * effect body — the rule the React compiler enforces here.
+ * The size is measured once directly and then kept up to date by an
+ * observer. Taking the initial value from the observer's own first
+ * callback instead reads tidier, but it makes the graph existing at all
+ * depend on a callback being delivered — and `ResizeObserver` delivers
+ * during the rendering steps, which a background tab does not run. When
+ * that value never arrives there is nothing to see and no error to say
+ * why, so the graph renders as an empty field. Measuring first costs one
+ * `getBoundingClientRect` and removes the dependency.
  */
 export function useFrame(containerRef: RefObject<HTMLElement | null>): Frame | null {
   const [frame, setFrame] = useState<Frame | null>(null)
@@ -65,11 +57,19 @@ export function useFrame(containerRef: RefObject<HTMLElement | null>): Frame | n
 
     if (!container) return
 
+    const measure = (width: number, height: number) => {
+      setFrame((current) =>
+        current && current.halfWidth === width / 2 && current.halfHeight === height / 2
+          ? current
+          : { halfWidth: width / 2, halfHeight: height / 2 }
+      )
+    }
+    const box = container.getBoundingClientRect()
+
+    measure(box.width, box.height)
+
     const observer = new ResizeObserver(([entry]) => {
-      setFrame({
-        halfWidth: entry.contentRect.width / 2,
-        halfHeight: entry.contentRect.height / 2,
-      })
+      measure(entry.contentRect.width, entry.contentRect.height)
     })
 
     observer.observe(container)
@@ -87,6 +87,17 @@ export function useFrame(containerRef: RefObject<HTMLElement | null>): Frame | n
  * than laying it out again from scratch. Only genuinely new nodes are
  * seeded, and they are seeded from their id so the result is repeatable.
  */
+function configure(
+  simulation: Simulation,
+  { frame, links, anchors, nodes, boxes }: Omit<LayoutOptions, 'containerRef' | 'still'> & { frame: Frame }
+): void {
+  simulation.frame = frame
+  simulation.links = links
+  simulation.anchors = anchors
+  reconcile(simulation, nodes, boxes)
+  reheat(simulation)
+}
+
 function reconcile(simulation: Simulation, nodes: GraphNode[], boxes: Map<string, Box>): void {
   const next = new Map<string, Body>()
 
@@ -95,16 +106,20 @@ function reconcile(simulation: Simulation, nodes: GraphNode[], boxes: Map<string
 
     if (!box) continue
 
+    const seed = polarPoint(ringRadiusFor(node.depth), node.seedAngle)
     const existing = simulation.bodies.get(node.id)
 
     if (existing) {
       existing.halfWidth = box.halfWidth
       existing.halfHeight = box.halfHeight
+      // The home moves even for a body that stayed: folding a branch
+      // away re-fans its siblings, and the place they are drawn back to
+      // has to be the new one or a collapse would slowly undo itself.
+      existing.homeX = seed.x
+      existing.homeY = seed.y
       next.set(node.id, existing)
       continue
     }
-
-    const seed = polarPoint(ringRadiusFor(node.depth), node.seedAngle)
 
     next.set(node.id, makeBody(node.id, seed.x, seed.y, box))
   }
@@ -245,15 +260,11 @@ export function useGraphLayout(options: LayoutOptions): Layout {
 
     if (!container || !frame) return
 
-    const simulation = simulationRef.current ?? createSimulation(frame)
-    const warm = simulationRef.current !== null
+    const warm = simulationRef.current
+    const simulation = warm ?? createSimulation(frame)
 
+    configure(simulation, { frame, links, anchors, nodes, boxes })
     simulationRef.current = simulation
-    simulation.frame = frame
-    simulation.links = links
-    simulation.anchors = anchors
-    reconcile(simulation, nodes, boxes)
-    reheat(simulation)
 
     let raf = 0
     const tick = () => {
@@ -270,7 +281,7 @@ export function useGraphLayout(options: LayoutOptions): Layout {
     // graph that already makes sense. Every change after that is worth
     // watching, because seeing the branches move is how you learn that
     // they push on each other.
-    // if (!warm) settle(simulation, WARM_UP_TICKS)
+    if (!warm) settle(simulation, WARM_UP_TICKS)
     if (still) settle(simulation, SETTLE_TICKS)
 
     paint(container, simulation, transformRef.current)
@@ -308,7 +319,7 @@ export function useGraphLayout(options: LayoutOptions): Layout {
         }
         body.x = toLocalX(moved.clientX) + grabX
         body.y = toLocalY(moved.clientY) + grabY
-        reheat(simulation, DRAG_ALPHA)
+        reheat(simulation, physicsConfig.DRAG_ALPHA)
         runRef.current()
       }
 
@@ -316,7 +327,7 @@ export function useGraphLayout(options: LayoutOptions): Layout {
       // into whatever place the forces think it belongs.
       const onUp = () => {
         body.pinned = false
-        setAlpha(simulation, RELEASE_ALPHA)
+        setAlpha(simulation, physicsConfig.RELEASE_ALPHA)
         runRef.current()
         window.removeEventListener('pointermove', onMove)
       }

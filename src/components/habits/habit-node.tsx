@@ -1,7 +1,7 @@
 'use client'
 
 import type { GraphNode } from '@/lib/habits/tree'
-import { FADED, paintFor } from '@/lib/habits/node-paint'
+import { FADED, paintFor, tierOf } from '@/lib/habits/node-paint'
 import type { HabitNodeView } from '@/types/habits'
 import { HabitCard } from './habit-card'
 
@@ -35,7 +35,7 @@ export function HabitNode({
   onOpen: () => void
   onClose: () => void
 }) {
-  const paint = habit.archived ? FADED : paintFor(node.kind, node.category)
+  const paint = habit.archived ? FADED : paintFor(tierOf(node), node.category)
 
   return (
     <div

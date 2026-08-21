@@ -1,9 +1,9 @@
 import type { Body, Link } from './body'
 import {
   applyAnchor,
+  applyHoming,
   applyRepulsion,
   applySprings,
-  containBodies,
   resolveCollisions,
 } from './forces'
 
@@ -16,11 +16,24 @@ import {
  * one visit to the next.
  */
 
+/**
+ * The tuned constants.
+ *
+ * Repulsion and spring are a pair and only their ratio matters: raise one
+ * without the other and every edge settles long, which is how the graph
+ * once came to rest 25% past its own rest lengths.
+ *
+ * These are hand-tuned values, arrived at with a temporary panel of
+ * sliders over this object. Every number here was felt rather than
+ * derived, so change them by feel too — and check a throw afterwards,
+ * because the settled graph and a released one are different regimes and
+ * a value can be right for one and wrong for the other.
+ */
 export const physicsConfig = {
   /**
    * Sets how much air a node insists on. Balanced against SPRING below.
    */
-  REPULSION: 15,
+  REPULSION: 8,
 
   /**
    * Beyond this many pixels, nodes stop pushing on each other at all.
@@ -30,23 +43,54 @@ export const physicsConfig = {
   /**
    * Stiffness of an edge.
    */
-  SPRING: 0.1,
+  SPRING: 0.13,
+
+  /**
+   * Pull toward the layout's chosen position — see `applyHoming`. Tuned
+   * against the real graph rather than a toy one: a nine-node fixture
+   * comes home at almost any value, and only the full tree shows that a
+   * subcategory dragged across the screen needs this much to actually
+   * arrive before the graph goes cold.
+   */
+  HOMING: 0.125,
+
+  /**
+   * How hot the graph runs while a node is under the pointer — warm
+   * enough that its neighbours get out of the way as you move it.
+   */
+  DRAG_ALPHA: 0.5,
+
+  /**
+   * And how hot it runs once you let go.
+   *
+   * This is the snappiness dial. It used to be 0.22, well below the drag
+   * temperature, on the theory that a released node should ease home
+   * rather than snap to it. In practice the graph went cold while the
+   * branch was still crawling back, and a thrown subcategory simply
+   * stopped wherever it had got to — which is the "too permissive"
+   * complaint exactly. Releasing now costs as much energy as dragging,
+   * so the arrangement is always reached.
+   */
+  RELEASE_ALPHA: 0.5,
 
   /**
    * Velocity kept between ticks. Lower means a more viscous graph.
+   *
+   * This was tuned all the way down to the bottom of the range that was
+   * on offer, so the graph may well want to be thicker still.
    */
-  FRICTION: 0.9,
+  FRICTION: 0.5,
 
   /**
    * How quickly the whole system cools. Lower means a longer, lazier settle.
    */
-  COOLING: 0.010,
+  COOLING: 0.012,
 
   /** Below this the graph is still and there is nothing left to paint. */
   COOL_ENOUGH: 0.005,
 
   /** Clear air left between two boxes that had to be pushed apart. */
-  COLLISION_PADDING: 50,
+  COLLISION_PADDING: 55,
 }
 
 /** A body held toward a point: the root at the centre, or an opened card. */
@@ -101,6 +145,7 @@ export function step(simulation: Simulation): void {
 
   applyRepulsion(bodies, physicsConfig.REPULSION, physicsConfig.REPULSION_RANGE, alpha)
   applySprings(simulation.bodies, simulation.links, physicsConfig.SPRING, alpha)
+  applyHoming(bodies, physicsConfig.HOMING, alpha)
 
   for (const anchor of simulation.anchors) {
     applyAnchor(simulation.bodies.get(anchor.id), anchor.x, anchor.y, anchor.strength, alpha)
@@ -108,7 +153,6 @@ export function step(simulation: Simulation): void {
 
   integrate(bodies)
   resolveCollisions(bodies, physicsConfig.COLLISION_PADDING)
-  containBodies(bodies, simulation.frame.halfWidth, simulation.frame.halfHeight)
 
   simulation.alpha -= simulation.alpha * physicsConfig.COOLING
 }

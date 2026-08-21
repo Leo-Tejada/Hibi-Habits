@@ -1,17 +1,19 @@
 'use client'
 
 import { useState, type KeyboardEvent } from 'react'
-import { paintFor } from '@/lib/habits/node-paint'
+import { paintFor, tierOf } from '@/lib/habits/node-paint'
 import type { GraphNode } from '@/lib/habits/tree'
+import { areaLabel } from '@/lib/taxonomy'
 
 /**
- * A habit being named.
+ * A habit or a side quest being named. Which one it is was decided by
+ * the `+` that opened it, and shows in the node's own label.
  *
  * It joins the graph as a real node the moment you ask for it, so the
  * physics makes room for it before it exists — you can see where the new
  * one is going to live while you are still typing its name. A name is
- * all it asks for: the schedule comes later, and until it has one the
- * habit writes nothing into your days.
+ * all it asks for: for a habit the schedule comes later, and until it
+ * has one the habit writes nothing into your days.
  */
 export function PendingNode({
   node,
@@ -29,7 +31,7 @@ export function PendingNode({
   onCancel: () => void
 }) {
   const [title, setTitle] = useState('')
-  const paint = paintFor(node.kind, node.category)
+  const paint = paintFor(tierOf(node), node.category)
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Enter') onSubmit(title)
@@ -42,7 +44,7 @@ export function PendingNode({
       value={title}
       disabled={saving}
       placeholder="Name it"
-      aria-label={`New habit in ${node.label}`}
+      aria-label={node.area ? `${node.label} in ${areaLabel(node.area)}` : node.label}
       onChange={(event) => setTitle(event.target.value)}
       onKeyDown={onKeyDown}
       onBlur={() => {

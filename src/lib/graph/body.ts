@@ -15,6 +15,13 @@ export type Body = {
   vy: number
   halfWidth: number
   halfHeight: number
+  /**
+   * Where the layout wants this body to be — the seeded ring position,
+   * recomputed whenever the shape of the graph changes. `applyHoming`
+   * pulls it back here, which is what makes a drag temporary.
+   */
+  homeX: number
+  homeY: number
   /** Held where it is — under the pointer, or anchored by the layout. */
   pinned: boolean
 }
@@ -29,7 +36,7 @@ export type Link = {
 export type Box = { halfWidth: number; halfHeight: number }
 
 export function makeBody(id: string, x: number, y: number, box: Box): Body {
-  return { id, x, y, vx: 0, vy: 0, ...box, pinned: false }
+  return { id, x, y, vx: 0, vy: 0, homeX: x, homeY: y, ...box, pinned: false }
 }
 
 /**

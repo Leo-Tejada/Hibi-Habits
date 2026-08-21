@@ -38,9 +38,16 @@ export function applyRepulsion(
 
       if (Math.abs(dx) > range || Math.abs(dy) > range) continue
 
-      const distance = Math.max(Math.hypot(dx, dy), contactDistance(a, b), EPSILON)
+      const centres = Math.hypot(dx, dy)
 
-      if (distance > range) continue
+      if (centres > range) continue
+
+      // The cutoff is a question about centres; the floor is a question
+      // about denominators. Doing both to one number meant a body wider
+      // than `range` — a card — floored its way past the cutoff and
+      // stopped repelling entirely, which is the exact opposite of what
+      // a node that just grew to fill the screen should do.
+      const distance = Math.max(centres, contactDistance(a, b), EPSILON)
       const push = (strength * chargeOf(a) * chargeOf(b) * alpha) / (distance * distance)
       const ux = dx / distance
       const uy = dy / distance
@@ -153,7 +160,26 @@ function shift(a: Body, b: Body, dx: number, dy: number): void {
   b.y += dy
 }
 
-/** Keep everything inside the frame, so nothing wanders off to be lost. */
-export function containBodies(bodies: Body[], halfWidth: number, halfHeight: number): void {
-  // Disabled to allow the graph to expand beyond the window.
+/**
+ * Draw every body back toward the place the layout picked for it.
+ *
+ * Repulsion and springs together have many stable arrangements, and they
+ * will settle into whichever one they were last pushed toward. That is
+ * why throwing a subcategory across the screen used to leave it there:
+ * it came home, the neighbours had shuffled, and the whole branch cooled
+ * into a *different* valid arrangement a couple of hundred pixels off.
+ *
+ * This is the force that says which arrangement is the right one. It is
+ * deliberately the weakest of the four — strong enough to decide between
+ * two equilibria, far too weak to flatten the graph onto its seed — so
+ * collapsing a branch still redistributes the rest, and dragging still
+ * feels like pushing on something springy rather than fighting a magnet.
+ */
+export function applyHoming(bodies: Body[], strength: number, alpha: number): void {
+  for (const body of bodies) {
+    if (body.pinned) continue
+
+    body.vx += (body.homeX - body.x) * strength * alpha
+    body.vy += (body.homeY - body.y) * strength * alpha
+  }
 }

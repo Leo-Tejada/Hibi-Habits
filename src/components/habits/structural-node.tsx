@@ -1,4 +1,4 @@
-import { paintFor } from '@/lib/habits/node-paint'
+import { paintFor, tierOf } from '@/lib/habits/node-paint'
 import type { GraphNode } from '@/lib/habits/tree'
 
 export function StructuralNode({
@@ -18,7 +18,7 @@ export function StructuralNode({
   onAdd: (() => void) | null
   onAddQuest?: (() => void) | null
 }) {
-  const paint = paintFor(node.kind, node.category)
+  const paint = paintFor(tierOf(node), node.category)
   const size = { width, height }
   const skin = {
     ...size,
@@ -66,7 +66,12 @@ function AddButton({ area, tone, onAdd, type }: { area: string; tone: string; on
       onClick={onAdd}
       title={`New ${type} in ${area}`}
       style={{ color: tone }}
-      className={`absolute ${type === 'habit' ? 'right-0.5' : 'left-0.5'} top-1/2 flex size-[18px] -translate-y-1/2 items-center justify-center font-mono text-[13px] leading-none opacity-0 focus-visible:opacity-100 group-hover:opacity-100`}
+      // Hover reveals it on a mouse, but a touch screen has no hover at
+      // all, so on a coarse pointer it is simply always there. Keyboard
+      // focus reveals it either way.
+      className={`absolute ${
+        type === 'habit' ? 'right-0.5' : 'left-0.5'
+      } top-1/2 flex size-[18px] -translate-y-1/2 items-center justify-center font-mono text-[13px] leading-none opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100`}
     >
       +<span className="sr-only">New {type} in {area}</span>
     </button>

@@ -19,6 +19,14 @@ import type { GraphNodeKind } from './tree'
 const MONO_ADVANCE = 0.66
 const SANS_ADVANCE = 0.62
 
+/**
+ * Quests are the one place the text face is not set at its regular
+ * weight: a main quest is bold, which runs a few percent wider for the
+ * same string. One estimate has to cover both kinds, because the box is
+ * decided before anything knows which kind it is, so it is the bold one.
+ */
+const SANS_BOLD_ADVANCE = 0.66
+
 type Metrics = {
   fontSize: number
   /** Extra letter-spacing, in units of the font size. Structural labels are tracked out. */
@@ -41,19 +49,26 @@ const METRICS: Record<GraphNodeKind, Metrics> = {
   root: { fontSize: 13, tracking: 0.14, advance: MONO_ADVANCE, paddingX: 20, height: 34, maxChars: 8, minChars: 0 },
   category: { fontSize: 11, tracking: 0.12, advance: MONO_ADVANCE, paddingX: 16, height: 28, maxChars: 16, minChars: 0 },
   area: { fontSize: 11, tracking: 0.12, advance: MONO_ADVANCE, paddingX: 14, height: 26, maxChars: 12, minChars: 0 },
-  quest: { fontSize: 12, tracking: 0, advance: SANS_ADVANCE, paddingX: 15, height: 28, maxChars: 24, minChars: 0 },
+  quest: { fontSize: 12, tracking: 0, advance: SANS_BOLD_ADVANCE, paddingX: 15, height: 28, maxChars: 24, minChars: 0 },
   habit: { fontSize: 12, tracking: 0, advance: SANS_ADVANCE, paddingX: 13, height: 26, maxChars: 20, minChars: 0 },
   pending: { fontSize: 12, tracking: 0, advance: SANS_ADVANCE, paddingX: 13, height: 26, maxChars: 22, minChars: 20 },
 }
 
-/** Area nodes carry a `+` button, which has to fit inside the same box. */
+/**
+ * Area nodes carry a `+` at each end — habit on the right, side quest on
+ * the left — and both have to fit inside the same box without crowding
+ * the label. Counted twice: the second one arrived with side quests and
+ * the allowance did not, so every area node was 18px narrower than the
+ * physics had been told.
+ */
 const ADD_BUTTON_WIDTH = 18
+const ADD_BUTTONS_PER_AREA = 2
 
 export function boxFor(kind: GraphNodeKind, label: string): Box {
   const metrics = METRICS[kind]
   const chars = Math.max(Math.min(label.length, metrics.maxChars), metrics.minChars)
   const glyphs = chars * metrics.fontSize * (metrics.advance + metrics.tracking)
-  const extra = kind === 'area' ? ADD_BUTTON_WIDTH : 0
+  const extra = kind === 'area' ? ADD_BUTTON_WIDTH * ADD_BUTTONS_PER_AREA : 0
 
   return {
     halfWidth: (glyphs + metrics.paddingX * 2 + extra) / 2,

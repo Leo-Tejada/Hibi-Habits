@@ -50,13 +50,36 @@ export function isStructural(kind: GraphNodeKind): boolean {
   return kind === 'root' || kind === 'category' || kind === 'area'
 }
 
+/**
+ * Edge rest length, indexed by the *parent's* depth, and the seed radius
+ * of each ring. The two are one fact written twice, so the second is
+ * derived from the first: when quests were inserted at depth 3 the link
+ * distances grew an entry and the radii did not, which left every quest
+ * and habit seeded 35px inside the ring its own spring wanted.
+ */
 const LINK_DISTANCE = [200, 135, 135, 100]
-const RING_RADIUS = [0, 200, 335, 435, 535]
+const RING_RADIUS = LINK_DISTANCE.reduce<number[]>(
+  (rings, gap) => [...rings, rings[rings.length - 1] + gap],
+  [0]
+)
 
 const FIRST_CATEGORY_ANGLE = -Math.PI / 2
 const CATEGORY_SPREAD = (Math.PI * 2) / CATEGORIES.length
 const AREA_SPREAD = 0.42
-const HABIT_SPREAD = 0.3
+
+/**
+ * Siblings are fanned by an angle, so the arc between two of them grows
+ * with the radius of the ring they sit on. A quest at depth 3 and a
+ * habit at depth 4 sharing one spread would therefore be spaced quite
+ * differently, and the deeper ring — the crowded one — would get less
+ * room, not more. Spacing is specified as an arc in pixels and turned
+ * into an angle per ring instead.
+ */
+const SIBLING_ARC = 132
+
+function spreadOn(depth: number): number {
+  return SIBLING_ARC / ringRadiusFor(depth)
+}
 
 export function ringRadiusFor(depth: number): number {
   return RING_RADIUS[Math.min(depth, RING_RADIUS.length - 1)]
@@ -154,17 +177,19 @@ function addArea(
   let currentPos = 0;
 
   areaQuests.forEach((quest) => {
-    const itemAngle = fanAngle(angle, currentPos++, totalItems, HABIT_SPREAD)
+    const itemAngle = fanAngle(angle, currentPos++, totalItems, spreadOn(3))
     addQuest(quest, id, itemAngle, options, nodes, links)
   })
 
   areaHabits.forEach((habit) => {
-    const itemAngle = fanAngle(angle, currentPos++, totalItems, HABIT_SPREAD)
+    const itemAngle = fanAngle(angle, currentPos++, totalItems, spreadOn(3))
     addHabit(habit, id, itemAngle, nodes, links, 3)
   })
 
   if (pending) {
-    addPending(area, id, fanAngle(angle, currentPos, totalItems, HABIT_SPREAD), nodes, links, options.pendingKind!)
+    const angleAt = fanAngle(angle, currentPos, totalItems, spreadOn(3))
+
+    addPending(area, id, angleAt, nodes, links, options.pendingKind ?? 'habit')
   }
 }
 
@@ -194,7 +219,7 @@ function addQuest(
 
   const questHabits = options.habits.filter((h) => h.questId === quest.id)
   questHabits.forEach((habit, pos) => {
-    addHabit(habit, id, fanAngle(angle, pos, questHabits.length, HABIT_SPREAD), nodes, links, 4)
+    addHabit(habit, id, fanAngle(angle, pos, questHabits.length, spreadOn(4)), nodes, links, 4)
   })
 }
 

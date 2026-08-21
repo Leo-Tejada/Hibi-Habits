@@ -7,7 +7,7 @@ import type { Anchor } from '@/lib/graph/simulation'
 import { boxFor, cardBox } from '@/lib/habits/node-size'
 import { ROOT_ID, buildGraph, isStructural, type GraphNode } from '@/lib/habits/tree'
 import { usePrefersReducedMotion } from '@/lib/motion'
-import { createHabit } from '@/server/actions/habits'
+import { createHabit, createSideQuest } from '@/server/actions/habits'
 import type { HabitsView } from '@/types/habits'
 import { GraphEdges } from './graph-edges'
 import { HabitNode } from './habit-node'
@@ -76,9 +76,6 @@ export function HabitGraph({ view }: { view: HabitsView }) {
     setOpenId(null)
     setPendingArea(null)
     setPendingKind(null)
-    setPendingKind(null)
-    setPendingKind(null)
-    setPendingKind(null)
     setCollapsed((folded) => {
       const next = new Set(folded)
 
@@ -87,33 +84,55 @@ export function HabitGraph({ view }: { view: HabitsView }) {
     })
   }, [])
 
+  const cancel = useCallback(() => {
+    setPendingArea(null)
+    setPendingKind(null)
+  }, [])
+
+  // Which `+` was pressed decides what gets written. The left one makes a
+  // side quest and the right one a habit; before this they both made a
+  // habit, because `pendingKind` was set and then never read.
   const save = useCallback(
     (area: Subcategory, title: string) => {
       if (title.trim().length === 0) {
-        setPendingArea(null)
+        cancel()
         return
       }
+      const kind = pendingKind
+
       startSaving(async () => {
-        await createHabit(area, title)
-        setPendingArea(null)
+        if (kind === 'quest') await createSideQuest(area, title)
+        else await createHabit(area, title)
+        cancel()
       })
     },
-    [startSaving]
+    [cancel, pendingKind, startSaving]
   )
 
   const close = useCallback(() => setOpenId(null), [])
 
-  
-  const handleBackgroundPointerDown = useCallback((event: React.PointerEvent) => {
-    if ((event.target as Element).closest('[data-body]')) return
-    close()
-  }, [close])
+  // Clicking the background backs out; *panning* the background does not.
+  // The two start identically, so the decision has to wait for the
+  // pointer to come up — closing on pointerdown meant the card vanished
+  // the instant you went to move the canvas.
+  const handleBackgroundPointerUp = useCallback(
+    (event: React.PointerEvent) => {
+      if ((event.target as Element).closest('[data-body]')) return
+      if (wasDragged()) return
+      close()
+      cancel()
+    },
+    [cancel, close, wasDragged]
+  )
 
   useEscape(close)
 
-
   return (
-    <div ref={containerRef} className="absolute inset-0 overflow-hidden" onPointerDown={handleBackgroundPointerDown}>
+    <div
+      ref={containerRef}
+      className="absolute inset-0 overflow-hidden"
+      onPointerUp={handleBackgroundPointerUp}
+    >
       <div data-layer="graph" className="absolute inset-0 origin-center">
         <GraphEdges links={graph.links} />
 
@@ -144,6 +163,7 @@ export function HabitGraph({ view }: { view: HabitsView }) {
                   setOpenId,
                   setPendingArea,
                   setPendingKind,
+                  cancel,
                   toggle,
                   save,
                 })}
@@ -196,6 +216,7 @@ type RenderOptions = {
   setOpenId: (id: string | null) => void
   setPendingArea: (area: Subcategory | null) => void
   setPendingKind: (kind: 'habit' | 'quest' | null) => void
+  cancel: () => void
   toggle: (id: string) => void
   save: (area: Subcategory, title: string) => void
 }
@@ -213,7 +234,7 @@ function renderNode(options: RenderOptions) {
         height={height}
         saving={options.saving}
         onSubmit={(title) => options.save(node.area as Subcategory, title)}
-        onCancel={() => options.setPendingArea(null)}
+        onCancel={options.cancel}
       />
     )
   }
@@ -241,7 +262,7 @@ function renderNode(options: RenderOptions) {
         seasonLabel={options.view.seasonLabel}
         onOpen={() => {
           if (options.wasDragged()) return
-          options.setPendingArea(null)
+          options.cancel()
           options.setOpenId(node.id)
         }}
         onClose={() => options.setOpenId(null)}
