@@ -34,7 +34,7 @@ export function TaskRow({
 
   return (
     <li
-      className={`group flex items-center gap-4 rounded-lg ${LINE_PAD} ${
+      className={`group flex items-center gap-4 ${LINE_PAD} ${
         line.happeningNow ? 'bg-well ring-1 ring-inset ring-line' : ''
       } ${locked ? 'opacity-45' : ''}`}
     >
@@ -55,7 +55,7 @@ export function TaskRow({
           disabled={line.settled}
           aria-label={line.raw}
           onChange={(event) => onToggle(event.target.checked)}
-          className="size-4 appearance-none rounded border border-line-soft bg-ground checked:border-ink checked:bg-ink disabled:cursor-not-allowed"
+          className="size-4 appearance-none border border-line-soft bg-ground checked:border-ink checked:bg-ink disabled:cursor-not-allowed"
         />
         {/*
           Ten, not twelve: rows sit 20px apart, so this covers the whole

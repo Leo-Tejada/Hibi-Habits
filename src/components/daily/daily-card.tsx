@@ -99,7 +99,7 @@ export function DailyCard({ view }: { view: DailyView }) {
 
   return (
     <Card
-      className="w-full max-w-2xl px-8 pt-7 pb-8"
+      className="w-full max-w-xl px-8 pt-7 pb-8"
       onClick={() => (editing ? commit(entries) : startEditing())}
     >
       {/*
@@ -111,7 +111,7 @@ export function DailyCard({ view }: { view: DailyView }) {
         ref={headerRef}
         title="Scroll to change day"
         onClick={(event) => event.stopPropagation()}
-        className="-mx-8 -mt-7 mb-6 flex items-baseline justify-between gap-4 rounded-t-xl border-b border-line bg-well px-8 py-5"
+        className="-mx-8 -mt-7 mb-6 flex items-baseline justify-between gap-4 border-b border-line bg-well px-8 py-5"
       >
         <div className="flex items-baseline gap-4">
           <h1 className="text-[24px] font-bold leading-none tracking-[-0.02em]">

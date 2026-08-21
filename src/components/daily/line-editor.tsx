@@ -115,7 +115,7 @@ export function LineEditor({
       {lines.map((line, index) => (
         <li
           key={line.id ?? `new-${index}`}
-          className={`relative rounded-lg ${focused === index ? 'bg-well' : ''}`}
+          className={`relative ${focused === index ? 'bg-well' : ''}`}
         >
           <TaskText
             raw={line.raw}
@@ -162,7 +162,7 @@ function Suggestions({ options, onPick }: { options: string[]; onPick: (option: 
   if (options.length === 0) return null
 
   return (
-    <ul className="absolute left-3 top-full z-10 mt-1 min-w-64 overflow-hidden rounded-lg border border-line bg-panel shadow-lg">
+    <ul className="absolute left-3 top-full z-10 mt-1 min-w-64 overflow-hidden border border-line bg-panel shadow-lg">
       {options.map((option, index) => (
         <li key={option}>
           <button
