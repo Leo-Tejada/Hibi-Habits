@@ -1,47 +1,94 @@
 'use client'
 
-import { ShaderGradient, ShaderGradientCanvas } from '@shadergradient/react'
+import { ShaderGradient, ShaderGradientCanvas, type GradientT } from '@shadergradient/react'
 import { useSyncExternalStore } from 'react'
 import { readResolvedTheme, subscribeResolvedTheme, type ResolvedTheme } from '@/lib/theme'
 
 /**
- * A gradient as exported from shadergradient.co, plus how close to stand.
+ * One gradient per theme, written as plain values.
  *
- * `zoom` is a separate field because the exported URL cannot carry it: for
- * `type=sphere` the library pins the camera to a fixed distance of 14 units,
- * ignores `cDistance` entirely, and steers with `camera.zoom` alone — which
- * the export always leaves at 1. Planes read `cDistance` from the URL as
- * normal and ignore this field.
- */
-type Gradient = { url: string; zoom?: number }
-
-/**
- * One gradient per theme, because a background that flatters the light
- * palette will not flatter the dark one.
+ * shadergradient.co is for exploring; this is where a design lands. Its
+ * URL does not always catch up with the canvas, so what you copy can be a
+ * step behind what you were looking at — and a 900-character query string
+ * is unreadable in a diff besides. The library takes these as props
+ * directly (`control="query"` is the alternate path, not the native one),
+ * so every knob is named, typed and commented here instead.
  *
- * The whole design lives in the URL — colours, shape, camera, grain,
- * animation — so restyling a background means pasting a new string here
- * and changing nothing else.
+ * Anything omitted falls back to the library's `halo` preset.
+ *
+ * One trap worth keeping in mind if you ever set `type: 'sphere'`:
+ * `cDistance` is ignored for spheres. The library pins them to a fixed
+ * distance of 14 units and frames them with `cameraZoom` alone. For
+ * planes it is the other way round — `cDistance` moves the camera and
+ * `cameraZoom` stays at 1.
  */
-const GRADIENTS: Record<ResolvedTheme, Gradient> = {
+const GRADIENTS: Record<ResolvedTheme, GradientT> = {
   light: {
-    url: 'https://shadergradient.co/customize?animate=on&axesHelper=off&bgColor1=%23000000&bgColor2=%23000000&brightness=1.2&cAzimuthAngle=180&cDistance=3.6&cPolarAngle=90&cameraZoom=1&color1=%23ff5005&color2=%23dbad91&color3=%23e18c87&destination=onCanvas&embedMode=off&envPreset=city&format=gif&fov=45&frameRate=10&gizmoHelper=hide&grain=on&lightType=3d&pixelDensity=1&positionX=-1.4&positionY=0&positionZ=0&range=disabled&rangeEnd=40&rangeStart=0&reflection=0.1&rotationX=0&rotationY=10&rotationZ=50&shader=defaults&type=plane&uAmplitude=1&uDensity=1.3&uFrequency=5.5&uSpeed=0.4&uStrength=4&uTime=0&wireframe=false',
+    type: 'plane',
+    animate: 'on',
+    shader: 'defaults',
+    uTime: 0,
+    uSpeed: 0.4,
+    uStrength: 4,
+    uDensity: 1.3,
+    uFrequency: 5.5,
+    uAmplitude: 1,
+    range: 'disabled',
+    rangeStart: 0,
+    rangeEnd: 40,
+    positionX: -1.4,
+    positionY: 0,
+    positionZ: 0,
+    rotationX: 0,
+    rotationY: 10,
+    rotationZ: 50,
+    color1: '#ff5005',
+    color2: '#dbad91',
+    color3: '#e18c87',
+    reflection: 0.1,
+    wireframe: false,
+    cAzimuthAngle: 180,
+    cPolarAngle: 90,
+    cDistance: 3.6,
+    cameraZoom: 1,
+    lightType: '3d',
+    brightness: 1.2,
+    envPreset: 'city',
+    grain: 'on',
   },
   dark: {
-    url: 'https://shadergradient.co/customize?animate=on&axesHelper=off&bgColor1=%23000000&bgColor2=%23000000&brightness=1.2&cAzimuthAngle=180&cDistance=3.6&cPolarAngle=90&cameraZoom=1&color1=%233b1718&color2=%23a65b46&color3=%23a40000&destination=onCanvas&embedMode=off&envPreset=city&format=gif&fov=45&frameRate=10&gizmoHelper=hide&grain=on&lightType=3d&pixelDensity=1&positionX=-1.4&positionY=0&positionZ=0&range=disabled&rangeEnd=40&rangeStart=0&reflection=0.1&rotationX=0&rotationY=10&rotationZ=50&shader=defaults&type=plane&uAmplitude=1&uDensity=1.3&uFrequency=5.5&uSpeed=0.4&uStrength=4&uTime=0&wireframe=false',
+    type: 'waterPlane',
+    animate: 'on',
+    shader: 'defaults',
+    uTime: 0,
+    uSpeed: 0.4,
+    uStrength: 1.3,
+    uDensity: 0.7,
+    uFrequency: 5.5,
+    uAmplitude: 1,
+    range: 'disabled',
+    rangeStart: 0,
+    rangeEnd: 40,
+    positionX: 0,
+    positionY: 0,
+    positionZ: 0,
+    rotationX: 0,
+    rotationY: 10,
+    rotationZ: 50,
+    color1: '#92293a',
+    color2: '#4c292f',
+    color3: '#6d2d6e',
+    reflection: 0.1,
+    wireframe: false,
+    cAzimuthAngle: 180,
+    cPolarAngle: 90,
+    cDistance: 4.51,
+    cameraZoom: 1,
+    lightType: '3d',
+    brightness: 0.7,
+    envPreset: 'city',
+    grain: 'on',
   },
-}
-
-/** Spheres need their closeness supplied; planes already carry it. */
-function framed({ url, zoom }: Gradient): string {
-  if (zoom === undefined || !url.includes('type=sphere')) return url
-
-  return url.replace(/cameraZoom=[\d.]+/, `cameraZoom=${zoom}`)
-}
-
-/** Reduced motion holds the same gradient still rather than removing it. */
-function heldStill(url: string): string {
-  return url.replace('animate=on', 'animate=off')
 }
 
 function subscribeToMotion(listener: () => void): () => void {
@@ -71,11 +118,16 @@ function useResolvedTheme(): ResolvedTheme {
 export function GradientCanvas() {
   const theme = useResolvedTheme()
   const still = usePrefersReducedMotion()
-  const url = framed(GRADIENTS[theme])
 
   return (
     <ShaderGradientCanvas style={{ width: '100%', height: '100%' }} pointerEvents="none" fov={45}>
-      <ShaderGradient control="query" urlString={still ? heldStill(url) : url} />
+      {/*
+        Keyed by theme: the two gradients are different mesh types, and a
+        compiled shader does not survive being handed a new one. This
+        rebuilds the scene on a theme change and leaves the canvas — and
+        its WebGL context — standing.
+      */}
+      <ShaderGradient key={theme} control="props" {...GRADIENTS[theme]} animate={still ? 'off' : 'on'} />
     </ShaderGradientCanvas>
   )
 }
