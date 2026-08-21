@@ -39,6 +39,18 @@
 
   --alert: #b45238;
   --figure: #8a6d1f;
+
+  /*
+   * Text that sits on top of a category colour rather than beside it.
+   *
+   * It is the only token that has to flip against the theme instead of
+   * with it: in light mode the category hues are dark, so a label on
+   * one must be pale; in dark mode they are pale, so it must be dark.
+   * Neither --ground nor --panel does that, since both follow the
+   * theme. Used at full-strength fills only — the weaker steps of the
+   * habits graph are pale enough for ordinary --ink.
+   */
+  --on-hue: #f9f9f7;
 }
 
 /*
@@ -66,6 +78,8 @@
 
     --alert: #e4785e;
     --figure: #c8a85a;
+
+    --on-hue: #0b0e12;
   }
 }
 
@@ -87,6 +101,8 @@
 
   --alert: #e4785e;
   --figure: #c8a85a;
+
+  --on-hue: #0b0e12;
 }
 
 @theme inline {
@@ -103,6 +119,7 @@
   --color-independence: var(--independence);
   --color-alert: var(--alert);
   --color-figure: var(--figure);
+  --color-on-hue: var(--on-hue);
 
   --font-sans: "Helvetica Neue", Helvetica, Arial, ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono-file), "JetBrains Mono NL", ui-monospace, SFMono-Regular, Menlo,

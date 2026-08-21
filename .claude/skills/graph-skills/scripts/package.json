@@ -1,0 +1,25 @@
+{
+  "name": "graph-skills",
+  "version": "1.0.0",
+  "description": "Lightweight graph-based orchestration for Claude Code subagents",
+  "main": "orchestrator.js",
+  "scripts": {
+    "build": "tsc",
+    "example": "ts-node example-repo-summary.ts",
+    "test": "echo \"Tests coming soon\" && exit 0"
+  },
+  "keywords": [
+    "claude",
+    "graph",
+    "orchestration",
+    "subagents",
+    "workflow"
+  ],
+  "author": "Kieran Steele",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.9.3",
+    "ts-node": "^10.9.2"
+  }
+}

@@ -2,6 +2,7 @@
 
 import { ShaderGradient, ShaderGradientCanvas, type GradientT } from '@shadergradient/react'
 import { useSyncExternalStore } from 'react'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { readResolvedTheme, subscribeResolvedTheme, type ResolvedTheme } from '@/lib/theme'
 
 /**
@@ -62,8 +63,8 @@ const GRADIENTS: Record<ResolvedTheme, GradientT> = {
     shader: 'defaults',
     uTime: 0,
     uSpeed: 0.4,
-    uStrength: 1.3,
-    uDensity: 0.7,
+    uStrength: 5.4,
+    uDensity: 0.5,
     uFrequency: 5.5,
     uAmplitude: 1,
     range: 'disabled',
@@ -89,22 +90,6 @@ const GRADIENTS: Record<ResolvedTheme, GradientT> = {
     envPreset: 'city',
     grain: 'on',
   },
-}
-
-function subscribeToMotion(listener: () => void): () => void {
-  const query = window.matchMedia('(prefers-reduced-motion: reduce)')
-
-  query.addEventListener('change', listener)
-  return () => query.removeEventListener('change', listener)
-}
-
-function readMotion(): boolean {
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
-}
-
-/** Assume stillness until the browser says otherwise. */
-function usePrefersReducedMotion(): boolean {
-  return useSyncExternalStore(subscribeToMotion, readMotion, () => true)
 }
 
 function useResolvedTheme(): ResolvedTheme {

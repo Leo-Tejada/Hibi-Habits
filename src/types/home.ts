@@ -49,6 +49,22 @@ export type Signal = {
 
 export type Tally = { done: number; pending: number; total: number }
 
+/**
+ * How one area of life answered what the season asked of it.
+ *
+ * All nine are always present so the panel keeps a stable shape, but
+ * `share` is null where the season has asked nothing yet — an area with
+ * no habits has not failed at anything.
+ */
+export type AreaCompletion = {
+  area: Subcategory
+  category: Category
+  label: string
+  done: number
+  total: number
+  share: number | null
+}
+
 export type { SeasonNav }
 
 export type HomeView = {
@@ -62,4 +78,5 @@ export type HomeView = {
   signals: Signal[]
   todayTally: Tally
   recentTally: Tally
+  areaCompletion: AreaCompletion[]
 }

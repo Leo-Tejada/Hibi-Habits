@@ -27,7 +27,7 @@ export default async function HomePage(props: PageProps<'/'>) {
           <aside className="flex flex-col gap-4">
             <SignalsPanel signals={view.signals} />
             <TodayPanel today={view.todayTally} recent={view.recentTally} />
-            <StatisticsPanel />
+            <StatisticsPanel areas={view.areaCompletion} />
           </aside>
         </div>
       </main>

@@ -1,6 +1,13 @@
 {
   "version": 1,
   "skills": {
+    "graph-skills": {
+      "source": "smithery.ai",
+      "sourceUrl": "https://smithery.ai/skills/Token-Eater/graph-skills",
+      "sourceType": "well-known",
+      "computedHash": "f784d61e72c0f046beb785ea4837821e63e91d4d4e8f109e2fd930f69292396d",
+      "wellKnownDigest": "sha256:d6e9a387488b3c79accdd69f399a36889de172045ec15c6aaaba1c50b9dc66b7"
+    },
     "prisma-cli": {
       "source": "prisma/skills",
       "sourceType": "github",

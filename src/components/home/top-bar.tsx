@@ -5,13 +5,13 @@ import type { SeasonNav } from '@/lib/seasons/nav'
 import { SeasonSwitcher } from './season-switcher'
 import { ThemeToggle } from './theme-toggle'
 
-/** The five screens of Hibi. Two of them exist so far. */
+/** The five screens of Hibi. Three of them exist so far. */
 const SCREENS = [
   { label: 'Home', href: '/' },
   { label: 'Daily tasks', href: '/daily' },
   { label: 'Journal', href: null },
   { label: 'Quests', href: null },
-  { label: 'Habits', href: null },
+  { label: 'Habits', href: '/habits' },
 ]
 
 function Wordmark() {
