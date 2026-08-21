@@ -12,7 +12,7 @@ export default async function HomePage(props: PageProps<'/'>) {
   const view = await homeView(typeof season === 'string' ? season : undefined)
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex min-h-dvh flex-col">
       <TopBar today={view.today} nav={view.nav} current="/" />
 
       <main className="mx-auto w-full max-w-[1400px] flex-1 px-6 py-5">

@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card'
  */
 export default function ErrorScreen({ reset }: { error: Error; reset: () => void }) {
   return (
-    <div className="flex min-h-full items-center justify-center px-6 py-16">
+    <div className="flex min-h-dvh items-center justify-center px-6 py-16">
       <Card className="w-full max-w-md px-8 py-8 text-center">
         <h1 className="text-[20px] font-bold tracking-[-0.02em]">This screen could not load</h1>
         <p className="mt-3 text-[14px] leading-relaxed text-ink-dim">
