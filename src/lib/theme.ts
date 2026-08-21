@@ -63,3 +63,32 @@ export function applyTheme(theme: Theme): void {
 export const THEME_BOOT_SCRIPT = `(function(){try{var t=localStorage.getItem(${JSON.stringify(
   THEME_STORAGE_KEY
 )});if(t==='light'||t==='dark'){document.documentElement.dataset.theme=t}}catch(e){}})()`
+
+export type ResolvedTheme = 'light' | 'dark'
+
+const DARK_QUERY = '(prefers-color-scheme: dark)'
+
+/**
+ * The theme actually on screen. An explicit choice wins; "system" defers to
+ * the browser. Anything that has to *match* the palette rather than report
+ * the setting needs this, because "system" is not a colour.
+ */
+export function readResolvedTheme(): ResolvedTheme {
+  const choice = readTheme()
+
+  if (choice !== 'system') return choice
+  return window.matchMedia(DARK_QUERY).matches ? 'dark' : 'light'
+}
+
+/** Either half can move it, so both are listened to. */
+export function subscribeResolvedTheme(listener: () => void): () => void {
+  const query = window.matchMedia(DARK_QUERY)
+  const unsubscribe = subscribeTheme(listener)
+
+  query.addEventListener('change', listener)
+
+  return () => {
+    unsubscribe()
+    query.removeEventListener('change', listener)
+  }
+}

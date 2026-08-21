@@ -1,7 +1,8 @@
 # Hibi Habits
-*Read the repo (it should have everything needed to get started)*.
+*Read the repo (we are currently working on the Daily tasks page and the Background)*.
 
-**Build modular and reusable code, this project will be big.**
+**Build modular and reusable code inspired by the philosophy of 42, this project will be big.**
+I rather have 100 lines of 5 functions than 50 lines of a single function.
 
 You are building a habit tracker web-app.
 
@@ -57,9 +58,5 @@ They only touch their **quests** each three months. Furthermore, subcategories a
 **With that said, explanation time should be over. If you have any questions, ask me now.**
 
 # Let's build
-## Homepage
-Let's start with the homepage. It should be **quest** oriented. So it should show the date, **main quests**, *side* quests, statistics (leave that as a blank square for now), and other minor numbers like: `days left until the new season` or alerts from other screens of the web-app like `alert from daily tasks, you forgot to do X yesterday!`.
-
-Build with a philosophy close to 42's. I want to be able to edit the code myself and it will be nice if the functions were short and clear. I'll prefer 1000 lines of 20 line functions rather than 600 lines of 300 line functions.
-
-If you got any questions. Ask me.
+## Background
+The other model left it unfinished. Bugs may be present. The only problem that I could really complain about right now is the zoom. The object looks too far away from the screen - even though I intentionally built it to be super up close.
